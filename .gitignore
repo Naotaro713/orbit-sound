@@ -1,0 +1,5 @@
+# 配布しないもの
+.claude/
+.DS_Store
+*.zip
+dist/

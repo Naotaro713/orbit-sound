@@ -1,0 +1,251 @@
+/* Orbit Sound — ポップアップ（Apple のアプリのような、すりガラスの見た目）
+   背景に音色の色の大きなぼかした光を置き、その上にすりガラスの板を重ねる。
+   （macOS の Visual Effect Material ＝ 背景の色がガラス越しににじむ表現にならう）
+   部品は Segmented Control・Slider・Sheet など、Apple の部品の形にそろえる。ライト表示のみ。 */
+:root {
+  --ink: #1D1D1F;
+  --sub: #6E6E73;
+  --faint: #A1A1A6;
+  --glass: rgba(255, 255, 255, .52);
+  --glass-strong: rgba(255, 255, 255, .78);
+  --glass-edge: rgba(255, 255, 255, .85);
+  --fill: rgba(118, 118, 128, .12);   /* Apple の「塗り」の灰色 */
+  --track: rgba(120, 120, 128, .2);
+  color-scheme: light;
+}
+
+/* 音色ごとの色：--tone-accent（粒・選択・スライダー）／--tone-bg（面の色み）／--glow1・--glow2（背景の光） */
+body { --tone-accent: #5E86E0; --tone-bg: #E8EFFD; --glow1: #A9C4FF; --glow2: #CFE0FF; }
+body[data-tone="slowed"] { --tone-accent: #3E9E96; --tone-bg: #E2F4F2; --glow1: #93D9D2; --glow2: #C6ECF6; }
+body[data-tone="spedup"] { --tone-accent: #E06A8A; --tone-bg: #FCE8EE; --glow1: #FFB3C6; --glow2: #FFD9C9; }
+body[data-tone="bass"]   { --tone-accent: #5FA352; --tone-bg: #E6F4E1; --glow1: #ADDB9F; --glow2: #DDF0C2; }
+body[data-tone="hall"]   { --tone-accent: #B08B47; --tone-bg: #F4EDDF; --glow1: #E6CB98; --glow2: #F3E2C4; }
+body[data-tone="custom"] { --tone-accent: #C99A12; --tone-bg: #FFF5D1; --glow1: #FFE08A; --glow2: #FFF0B8; }
+body.off { --tone-accent: #9A9AA0; --tone-bg: #EFEFF1; --glow1: #D6D6DC; --glow2: #E6E6EA; }
+
+* { box-sizing: border-box; }
+/* 板が画面の外から入ってくる途中で、ページがスクロールしないようにする */
+html { overflow: hidden; }
+body {
+  margin: 0;
+  width: 360px;
+  padding: 12px 14px 14px;
+  background: #F5F5F7;
+  color: var(--ink);
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+/* 背景の、ぼかした大きな光（音色の色）。この上のガラス越しに、色がにじんで見える */
+body::before, body::after {
+  content: ""; position: absolute; z-index: -1; border-radius: 50%;
+  filter: blur(40px); opacity: .75; transition: background-color .5s ease;
+  pointer-events: none;
+}
+body::before { width: 300px; height: 300px; left: -90px; top: 10px; background: var(--glow1); }
+body::after  { width: 280px; height: 280px; right: -110px; top: 250px; background: var(--glow2); }
+
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--tone-accent); outline-offset: 2px; }
+
+/* すりガラスの板（共通） */
+.stage, .module, .sheet, .chip {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 var(--glass-edge),          /* 上の縁の光 */
+    inset 0 0 0 .5px rgba(255, 255, 255, .6), /* ガラスのふち */
+    0 8px 24px rgba(30, 35, 60, .07),
+    0 1px 2px rgba(30, 35, 60, .05);
+}
+
+/* ---------- 見出し ---------- */
+.top { display: flex; align-items: center; justify-content: space-between; height: 26px; margin-bottom: 10px; }
+h1 { font-size: 15px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+/* 状態（小さなガラスの札＋色の点） */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px 3px 8px; border-radius: 99px;
+  font-size: 11.5px; font-weight: 500; color: var(--sub);
+}
+.chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.chip[data-kind="active"] i { background: #34C759; box-shadow: 0 0 0 3px rgba(52, 199, 89, .18); }
+.chip[data-kind="warn"] i { background: #FF9F0A; }
+
+/* ---------- 主役の面 ---------- */
+.stage {
+  position: relative;
+  height: 262px;
+  border-radius: 26px;
+  overflow: hidden;
+}
+/* 面の中だけ、音色の色みをうっすら重ねる */
+.stage::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: radial-gradient(circle at 50% 46%, rgba(255,255,255,.7), rgba(255,255,255,0) 60%), var(--tone-bg);
+  opacity: .55; transition: background-color .5s ease;
+}
+.stage { isolation: isolate; }
+.stage canvas { position: absolute; left: 0; top: 4px; width: 332px; height: 252px; }
+
+/* 警告の説明（動く図の上でも読めるよう、濃いめのガラス） */
+.notice {
+  position: absolute; left: 12px; right: 12px; top: 12px; margin: 0; z-index: 1;
+  padding: 8px 11px; border-radius: 14px;
+  background: var(--glass-strong); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  box-shadow: inset 0 0 0 .5px rgba(255,255,255,.8), 0 2px 8px rgba(30,35,60,.06);
+  font-size: 11.5px; line-height: 1.45; color: var(--ink);
+}
+
+/* 頭のボタン（見た目は絵。押せる範囲だけを重ねる） */
+.head-btn {
+  position: absolute; left: 50%; top: 122px; width: 70px; height: 70px; margin: -35px 0 0 -35px;
+  border-radius: 50%; border: 0; background: transparent; cursor: pointer;
+  transition: background-color .2s;
+}
+.head-btn:hover { background: rgba(255, 255, 255, .35); }
+
+.stage-bottom {
+  position: absolute; left: 18px; right: 18px; bottom: 14px;
+  display: flex; flex-direction: column; gap: 1px; pointer-events: none;
+}
+.stage-bottom b { font-size: 20px; font-weight: 700; letter-spacing: -.015em; white-space: nowrap; line-height: 1.2; }
+.stage-bottom span { font-size: 12px; color: var(--sub); white-space: nowrap; }
+
+/* ---------- すりガラスの段 ---------- */
+.module { margin-top: 10px; padding: 8px; border-radius: 22px; }
+
+/* 動き：アイコンだけ。選ぶと白いガラスの丸が乗る */
+.motions { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; position: relative; }
+.motions button {
+  position: relative; z-index: 1;
+  border: 0; background: transparent; border-radius: 14px; height: 40px;
+  cursor: pointer; color: var(--faint); display: grid; place-items: center;
+  transition: color .25s;
+}
+.motions button svg { width: 26px; height: 26px; display: block; overflow: visible; }
+.motions button:hover { color: var(--ink); }
+.motions button[aria-checked="true"] { color: var(--tone-accent); }
+
+/* 滑って動く白いつまみ（選んだボタンの下に入る）。位置と幅は popup.js が入れる */
+.thumb {
+  position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none;
+  background: #fff;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04), inset 0 0 0 .5px rgba(0, 0, 0, .04);
+}
+.motions .thumb { border-radius: 14px; background: rgba(255, 255, 255, .92); }
+.slide-ready .thumb {
+  /* 少し行き過ぎてから戻る、ばねのような動き */
+  transition: transform .42s cubic-bezier(.34, 1.36, .64, 1), width .42s cubic-bezier(.34, 1.36, .64, 1), opacity .2s;
+}
+
+/* アイコンの小さな動き（マウスを乗せたとき。その動きを小さく再現する） */
+.motions svg, .motions svg * { transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); transform-box: view-box; transform-origin: 14px 14px; }
+.motions button[data-motion="circle"]:hover svg .ic-turn,
+.motions button[data-motion="drift"]:hover svg .ic-turn { transform: rotate(60deg); }
+.motions button[data-motion="lr"]:hover .ic-arrow-0 { transform: translateX(-2px); }
+.motions button[data-motion="lr"]:hover .ic-arrow-1 { transform: translateX(2px); }
+.motions button[data-motion="none"]:hover .ic-slash { transform: rotate(90deg); }
+.motions button[data-motion="figure8"]:hover .ic-path,
+.motions button[data-motion="spiral"]:hover .ic-path { animation: ic-draw .7s ease-out; }
+@keyframes ic-draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+.motions .ic-path { stroke-dasharray: 100; stroke-dashoffset: 0; }
+
+/* 音色：Segmented Control（灰色の溝の中で、白いつまみが選ばれたものに乗る） */
+.tones {
+  display: flex; gap: 0; margin-top: 6px; padding: 2px; position: relative;
+  background: var(--fill); border-radius: 11px;
+}
+.tones button {
+  position: relative; z-index: 1;
+  flex: 1 1 0; border: 0; background: transparent; border-radius: 9px;
+  padding: 5px 2px; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; color: var(--ink);
+}
+/* 選んだ文字は太くせず色だけ少し濃く（太くすると幅が変わり、つまみと合わなくなるため） */
+.tones button[aria-checked="true"] { color: #000; }
+.tones .thumb { border-radius: 9px; }
+
+/* ---------- スライダー（Apple の Slider の形） ---------- */
+.field {
+  display: grid; grid-template-columns: 78px 1fr 58px; align-items: center;
+  column-gap: 8px; min-height: 32px; padding: 0 6px;
+}
+.field label, .field .field-label { font-size: 12.5px; font-weight: 500; }
+/* 拍：音色と同じ形の切り替えボタンを、1行に小さく */
+.beats { margin-top: 0; }
+.beats button { padding: 4px 2px; font-size: 11.5px; }
+#bpm-out.locked { color: var(--tone-accent); font-weight: 600; }
+.field output { text-align: right; font-variant-numeric: tabular-nums; color: var(--sub); font-size: 12px; }
+.field output.loud { color: #D9480F; font-weight: 600; }
+.field input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 24px; margin: 0; background: transparent; cursor: pointer;
+}
+.field input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right, var(--tone-accent) 0 var(--pct, 50%), var(--track) var(--pct, 50%) 100%);
+}
+.field input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 22px; height: 22px; margin-top: -9px; border-radius: 50%; background: #fff;
+  box-shadow: 0 .5px 4px rgba(0, 0, 0, .12), 0 6px 13px rgba(0, 0, 0, .12), inset 0 0 0 .5px rgba(0, 0, 0, .04);
+  transition: transform .15s;
+}
+.field input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.08); }
+.field input[type="range"]:focus-visible { outline: none; }
+.field input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone-accent) 30%, transparent), 0 6px 13px rgba(0,0,0,.12); }
+
+.more {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  margin-top: 4px; padding: 8px 6px 2px; border: 0; border-top: .5px solid rgba(60, 60, 67, .14);
+  background: transparent; color: var(--ink); font-size: 12.5px; font-weight: 500; cursor: pointer;
+}
+.more span { color: var(--faint); font-size: 16px; line-height: 1; transition: transform .2s; }
+.more:hover span { transform: translateX(2px); color: var(--sub); }
+
+/* ---------- 詳しい調整（Sheet） ---------- */
+.scrim { position: absolute; inset: 0; background: rgba(30, 35, 60, .14); opacity: 0; transition: opacity .2s; }
+.scrim.show { opacity: 1; }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  --glass: rgba(255, 255, 255, .72);
+  border-radius: 26px 26px 0 0;
+  padding: 8px 12px 14px;
+  transform: translateY(100%); transition: transform .32s cubic-bezier(.32, .72, 0, 1);
+}
+.sheet::before {
+  content: ""; display: block; width: 36px; height: 5px; border-radius: 3px;
+  background: rgba(60, 60, 67, .2); margin: 0 auto 8px;
+}
+.sheet.show { transform: translateY(0); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin: 0 6px 4px; }
+.sheet-head h2 { font-size: 15px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+.close { border: 0; background: transparent; color: var(--tone-accent); font-size: 13px; font-weight: 600; cursor: pointer; padding: 4px 2px; }
+.sheet-foot { display: flex; justify-content: space-between; align-items: center; margin: 8px 6px 0; }
+.ghost {
+  border: 0; background: var(--fill); color: var(--ink);
+  border-radius: 99px; padding: 6px 12px; font-size: 12px; font-weight: 500; cursor: pointer;
+}
+.ghost:hover { background: rgba(118, 118, 128, .2); }
+.hint { color: var(--sub); font-size: 12px; }
+
+/* 左右チェック */
+.check { display: flex; align-items: center; gap: 6px; margin: 8px 6px 0; padding-top: 9px; border-top: .5px solid rgba(60, 60, 67, .14); }
+.check-title { font-size: 12.5px; font-weight: 500; margin-right: auto; }
+.check .ghost[aria-pressed="true"] { background: var(--tone-accent); color: #fff; }
+.check .ghost:disabled { opacity: .45; cursor: default; }
+.check-msg { margin: 5px 6px 0; min-height: 1.45em; color: var(--sub); font-size: 11.5px; }
+.check-msg.side { color: var(--tone-accent); font-weight: 600; }
+
+/* ---------- 使えないページ ---------- */
+.unsupported { padding: 4px 2px 6px; }
+.unsupported .big { font-size: 15px; font-weight: 700; margin: 4px 0 8px; }
+.unsupported p { margin: 0 0 8px; }
+.unsupported .small { color: var(--sub); font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

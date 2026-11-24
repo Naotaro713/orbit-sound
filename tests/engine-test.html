@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Orbit Sound エンジンのテスト</title>
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 20px; background: #fff; color: #111; }
+  .pass { color: #2b8a3e; } .fail { color: #c92a2a; font-weight: bold; }
+  pre { background: #f4f4f6; padding: 10px; }
+</style>
+</head>
+<body>
+<h1>エンジンのテスト</h1>
+<p>音を実際には鳴らさず、計算だけで結果を確かめます。</p>
+<ul id="list"></ul>
+<pre id="summary">実行中…</pre>
+<script src="../engine.js"></script>
+<script>
+(async () => {
+  const { OrbitEngine, sanitize, withPreset, DEFAULTS } = OrbitSound;
+  const SR = 44100;
+  const results = [];
+  const check = (name, ok, detail) => {
+    results.push({ name, ok, detail });
+    const li = document.createElement('li');
+    li.className = ok ? 'pass' : 'fail';
+    li.textContent = `${ok ? '✔' : '✘'} ${name} — ${detail}`;
+    document.getElementById('list').appendChild(li);
+  };
+
+  // ステレオの音を作ってエンジンに通し、計算結果を返す
+  async function renderWith(settings, seconds, makeSource) {
+    const ctx = new OfflineAudioContext(2, Math.ceil(SR * seconds), SR);
+    const engine = new OrbitEngine(ctx);
+    engine.output.connect(ctx.destination);
+    engine.apply({ ...settings, enabled: true });
+    const merger = ctx.createChannelMerger(2);
+    const src = makeSource(ctx);
+    src.connect(merger, 0, 0);
+    src.connect(merger, 0, 1);
+    merger.connect(engine.input);
+    src.start(0);
+    const buf = await ctx.startRendering();
+    return [buf.getChannelData(0), buf.getChannelData(1)];
+  }
+  const tone = (freq, amp) => (ctx) => {
+    const o = ctx.createOscillator(); o.frequency.value = freq;
+    const g = ctx.createGain(); g.gain.value = amp;
+    o.connect(g);
+    return { connect: (...a) => g.connect(...a), start: (t) => o.start(t) };
+  };
+  // 音楽に近い、いろいろな高さを含む音（ノイズ）
+  const noise = (amp) => (ctx) => {
+    const b = ctx.createBuffer(1, SR * 2, SR), d = b.getChannelData(0);
+    let seed = 12345;
+    for (let i = 0; i < d.length; i++) { seed = (seed * 1103515245 + 12345) % 2147483648; d[i] = (seed / 1073741824 - 1) * amp; }
+    const s = ctx.createBufferSource(); s.buffer = b; s.loop = true;
+    return s;
+  };
+  const rms = (d, a, b) => { let s = 0; const i0 = Math.floor(a * SR), i1 = Math.floor(b * SR); for (let i = i0; i < i1; i++) s += d[i] * d[i]; return Math.sqrt(s / (i1 - i0)); };
+  const peak = (d, a, b) => { let m = 0; for (let i = Math.floor(a * SR); i < Math.floor(b * SR); i++) m = Math.max(m, Math.abs(d[i])); return m; };
+  const db = (x) => 20 * Math.log10(x);
+  const flat = sanitize({ ...DEFAULTS });
+
+  try {
+    // 1. 8D：8秒で1周。2秒後は右、6秒後は左に寄る
+    {
+      const [L, R] = await renderWith({ ...flat, orbitDepth: 1, orbitSeconds: 8 }, 8.5, tone(300, 0.3));
+      const rightSide = db(rms(R, 1.9, 2.1) / Math.max(rms(L, 1.9, 2.1), 1e-9));
+      const leftSide = db(rms(L, 5.9, 6.1) / Math.max(rms(R, 5.9, 6.1), 1e-9));
+      check('8D：2秒後は右に寄る', rightSide > 20, `右が左より ${rightSide.toFixed(1)} dB 大きい`);
+      check('8D：6秒後は左に寄る', leftSide > 20, `左が右より ${leftSide.toFixed(1)} dB 大きい`);
+    }
+    // 2. 8D：後ろ（4秒後）では高い音がこもる
+    {
+      const [L, R] = await renderWith({ ...flat, orbitDepth: 1, orbitSeconds: 8 }, 8.5, tone(8000, 0.3));
+      const back = rms(L, 3.95, 4.05) + rms(R, 3.95, 4.05);
+      const front = rms(L, 7.95, 8.05) + rms(R, 7.95, 8.05);
+      const diff = db(front / back);
+      check('8D：後ろでは高音がこもる', diff > 3, `前のほうが ${diff.toFixed(1)} dB 大きい`);
+    }
+    // 3. フラット：音がほぼ変わらない
+    {
+      const [L] = await renderWith(flat, 1, tone(440, 0.3));
+      const ratio = rms(L, 0.5, 1.0) / (0.3 / Math.SQRT2);
+      check('フラット：音量がほぼ変わらない', ratio > 0.95 && ratio < 1.05, `入力の ${ratio.toFixed(2)} 倍`);
+    }
+    // 4. 音量 300%：小さい音は大きくなる
+    {
+      const [L] = await renderWith({ ...flat, volume: 3 }, 1, tone(440, 0.05));
+      const ratio = rms(L, 0.5, 1.0) / (0.05 / Math.SQRT2);
+      check('音量300%：小さい音が約3倍になる', ratio > 2.8 && ratio < 3.2, `入力の ${ratio.toFixed(2)} 倍`);
+    }
+    // 5. 音量 300%：大きい音でも音割れ（1.0超え）しない
+    {
+      const [L, R] = await renderWith({ ...flat, volume: 3, bass: 12 }, 2, tone(80, 0.9));
+      const p = Math.max(peak(L, 0.3, 2), peak(R, 0.3, 2));
+      check('音量300%：大きい音でも割れない', p <= 1.0, `最大値 ${p.toFixed(3)}（1.0 以下なら OK）`);
+    }
+    // 6. リバーブ：音が止まったあとも響きが残る
+    {
+      const click = (ctx) => {
+        const b = ctx.createBuffer(1, SR, SR); b.getChannelData(0)[Math.floor(0.1 * SR)] = 1;
+        const s = ctx.createBufferSource(); s.buffer = b; return s;
+      };
+      const [Lw] = await renderWith({ ...flat, reverb: 0.6, roomSize: 3 }, 2, click);
+      const [Ld] = await renderWith({ ...flat, reverb: 0 }, 2, click);
+      const tailWet = rms(Lw, 0.8, 1.2), tailDry = rms(Ld, 0.8, 1.2);
+      check('リバーブ：響きが残る', tailWet > 1e-4, `0.7秒後の響き ${tailWet.toExponential(2)}`);
+      check('リバーブなし：響きが残らない', tailDry < 1e-5, `0.7秒後の響き ${tailDry.toExponential(2)}`);
+    }
+    // 8. 動きの形：成分に分けたあとも元の形とずれない
+    {
+      const { MOTIONS, motionSeries, seriesValue } = OrbitSound;
+      for (const name of Object.keys(MOTIONS).filter((n) => MOTIONS[n].kind === 'hrtf')) {
+        const s = motionSeries(name);
+        let err = 0;
+        for (let i = 0; i < 400; i++) {
+          const p = i / 400, want = MOTIONS[name].pos(p);
+          for (const ax of ['x', 'y', 'z']) err = Math.max(err, Math.abs(seriesValue(s[ax], p) - want[ax]));
+        }
+        check(`形の再現（${MOTIONS[name].label}）`, err < 0.02, `最大のずれ ${err.toFixed(4)}`);
+      }
+    }
+    // 9. 円（HRTF）：右・左に寄り、後ろではこもる
+    {
+      const st = { ...flat, motion: 'circle', orbitDepth: 1, orbitSeconds: 8 };
+      const [L, R] = await renderWith(st, 8.5, noise(0.3));
+      const right = db(rms(R, 1.95, 2.05) / rms(L, 1.95, 2.05));
+      const left = db(rms(L, 5.95, 6.05) / rms(R, 5.95, 6.05));
+      check('円：2秒後は右に寄る', right > 6, `右が左より ${right.toFixed(1)} dB 大きい`);
+      check('円：6秒後は左に寄る', left > 6, `左が右より ${left.toFixed(1)} dB 大きい`);
+      const [L2, R2] = await renderWith(st, 8.5, tone(8000, 0.3));
+      const back = rms(L2, 3.95, 4.05) + rms(R2, 3.95, 4.05);
+      const front = rms(L2, 7.95, 8.05) + rms(R2, 7.95, 8.05);
+      check('円：後ろでは高音がこもる', db(front / back) > 3, `前のほうが ${db(front / back).toFixed(1)} dB 大きい`);
+    }
+    // 9b. 立体感の強さ：強めると、真横での左右差がはっきり大きくなる
+    {
+      const side = async (spatial) => {
+        const [L, R] = await renderWith({ ...flat, motion: 'circle', orbitDepth: 1, orbitSeconds: 8, spatial }, 2.5, noise(0.3));
+        return db(rms(R, 1.95, 2.05) / rms(L, 1.95, 2.05));
+      };
+      const def = DEFAULTS.spatial;
+      const s0 = await side(0), sd = await side(def), s10 = await side(1);
+      check('立体感 0%：HRTF だけの左右差', s0 > 6, `${s0.toFixed(1)} dB`);
+      check(`立体感 ${Math.round(def * 100)}%（初期値）：左右差がはっきり大きい`, sd > 20 && sd > s0 + 8, `${sd.toFixed(1)} dB（0% より ${(sd - s0).toFixed(1)} dB 大きい）`);
+      check('立体感 100%：さらに大きい', s10 > sd, `${s10.toFixed(1)} dB`);
+    }
+    // 10. 速さを途中で変えても、アニメーション用の位相と実際の音が合う
+    {
+      const ctx = new OfflineAudioContext(2, SR * 3, SR);
+      const engine = new OrbitEngine(ctx);
+      engine.output.connect(ctx.destination);
+      const st = { ...flat, enabled: true, motion: 'circle', orbitDepth: 1, orbitSeconds: 8 };
+      engine.apply(st);
+      const src = noise(0.3)(ctx);
+      const merger = ctx.createChannelMerger(2);
+      src.connect(merger, 0, 0); src.connect(merger, 0, 1); merger.connect(engine.input); src.start(0);
+      let phaseAt1, predicted = {};
+      ctx.suspend(1).then(() => {
+        phaseAt1 = engine.motionState().phase;
+        engine.apply({ ...st, orbitSeconds: 2 }); // 途中で速くする
+        const st2 = engine.motionState();
+        // 位相 0.25（右）・0.75（左）になる時刻を、記録した位相と速さから予想する
+        predicted.right = 1 + ((0.25 - st2.phase + 1) % 1) / st2.freq;
+        predicted.left = 1 + ((0.75 - st2.phase + 1) % 1) / st2.freq;
+        ctx.resume();
+      });
+      const buf = await ctx.startRendering();
+      const L = buf.getChannelData(0), R = buf.getChannelData(1);
+      const expect1 = (1 - 0.01) / 8;
+      check('位相の記録（1秒後）', Math.abs(phaseAt1 - expect1) < 0.003, `記録 ${phaseAt1.toFixed(4)} / 計算 ${expect1.toFixed(4)}`);
+      const w = 0.025;
+      const r = db(rms(R, predicted.right - w, predicted.right + w) / rms(L, predicted.right - w, predicted.right + w));
+      const l = db(rms(L, predicted.left - w, predicted.left + w) / rms(R, predicted.left - w, predicted.left + w));
+      check('速さを変えたあと、予想どおりの時刻に右へ来る', r > 6, `${predicted.right.toFixed(3)} 秒：右が ${r.toFixed(1)} dB 大きい`);
+      check('速さを変えたあと、予想どおりの時刻に左へ来る', l > 6, `${predicted.left.toFixed(3)} 秒：左が ${l.toFixed(1)} dB 大きい`);
+    }
+    // 11. HRTF にしても音量がおおむね変わらない
+    {
+      const energy = (L, R) => Math.sqrt((rms(L, 0.5, 8.5) ** 2 + rms(R, 0.5, 8.5) ** 2) / 2);
+      const [Lf, Rf] = await renderWith(flat, 8.6, tone(500, 0.2));
+      for (const name of ['circle', 'figure8', 'spiral', 'drift']) {
+        const [L, R] = await renderWith({ ...flat, motion: name, orbitDepth: 1, orbitSeconds: 4 }, 8.6, tone(500, 0.2));
+        const ratio = energy(L, R) / energy(Lf, Rf);
+        check(`音量の差（${OrbitSound.MOTIONS[name].label}）`, ratio > 0.7 && ratio < 1.4, `フラットの ${ratio.toFixed(2)} 倍`);
+      }
+    }
+    // 12. 種類を次々に切り替えても、音が壊れない（数値の異常・音割れなし）
+    {
+      const ctx = new OfflineAudioContext(2, SR * 3, SR);
+      const engine = new OrbitEngine(ctx);
+      engine.output.connect(ctx.destination);
+      const st = { ...flat, enabled: true, orbitDepth: 1, orbitSeconds: 3, volume: 3 };
+      engine.apply(st);
+      const src = tone(200, 0.9)(ctx);
+      const merger = ctx.createChannelMerger(2);
+      src.connect(merger, 0, 0); src.connect(merger, 0, 1); merger.connect(engine.input); src.start(0);
+      const order = ['circle', 'lr', 'figure8', 'spiral', 'drift', 'lr'];
+      order.forEach((mo, i) => ctx.suspend(0.4 + i * 0.4).then(() => { engine.apply({ ...st, motion: mo }); ctx.resume(); }));
+      const buf = await ctx.startRendering();
+      let bad = 0, pk = 0;
+      for (const ch of [0, 1]) for (const v of buf.getChannelData(ch)) { if (!Number.isFinite(v)) bad++; pk = Math.max(pk, Math.abs(v)); }
+      check('切り替えても数値の異常がない', bad === 0, `異常な値 ${bad} 個`);
+      check('切り替えても音割れしない', pk <= 1.0, `最大値 ${pk.toFixed(3)}`);
+    }
+    // 13. 耳の時間差：右寄りのとき、右耳が先・左耳が後に届く
+    {
+      // L と R をずらして重ねたときに、いちばん似る「ずれ」を探す（正なら左耳が遅れている）
+      const lag = (L, R, a, b, maxLag) => {
+        const i0 = Math.floor(a * SR), i1 = Math.floor(b * SR);
+        let best = 0, bestV = -Infinity;
+        for (let k = -maxLag; k <= maxLag; k++) {
+          let v = 0;
+          for (let i = i0; i < i1; i++) v += L[i] * R[i - k];
+          if (v > bestV) { bestV = v; best = k; }
+        }
+        return best;
+      };
+      // 8秒で1周。1.33秒後は sin = 0.87（右寄り）、6.67秒後は sin = −0.87（左寄り）
+      const [L, R] = await renderWith({ ...flat, orbitDepth: 1, orbitSeconds: 8 }, 7, noise(0.3));
+      const want = Math.round(2 * 0.00065 * 0.866 * SR);
+      const kr = lag(L, R, 1.30, 1.36, 80);
+      const kl = lag(L, R, 6.64, 6.70, 80);
+      check('時間差：右寄りでは左耳が遅れる', Math.abs(kr - want) <= 4, `左耳が ${(kr / SR * 1000).toFixed(2)} ミリ秒遅れ（予想 ${(want / SR * 1000).toFixed(2)}）`);
+      check('時間差：左寄りでは右耳が遅れる', Math.abs(kl + want) <= 4, `右耳が ${(-kl / SR * 1000).toFixed(2)} ミリ秒遅れ（予想 ${(want / SR * 1000).toFixed(2)}）`);
+    }
+    // 14. 左右チェック：動画の音を、左だけ → 右だけ → 真ん中 に寄せる
+    {
+      const ctx = new OfflineAudioContext(2, SR * 3, SR);
+      const engine = new OrbitEngine(ctx);
+      engine.output.connect(ctx.destination);
+      engine.apply({ ...flat, enabled: true });
+      const src = noise(0.3)(ctx);
+      const merger = ctx.createChannelMerger(2);
+      src.connect(merger, 0, 0); src.connect(merger, 0, 1); merger.connect(engine.input); src.start(0);
+      const total = engine.probe();
+      const buf = await ctx.startRendering();
+      const L = buf.getChannelData(0), R = buf.getChannelData(1);
+      const left = db(rms(L, 0.5, 1.0) / Math.max(rms(R, 0.5, 1.0), 1e-9));
+      const right = db(rms(R, 1.7, 2.2) / Math.max(rms(L, 1.7, 2.2), 1e-9));
+      const back = db(rms(L, 2.7, 3.0) / rms(R, 2.7, 3.0));
+      check('左右チェック：はじめは左だけ', left > 40, `左が ${left.toFixed(1)} dB 大きい`);
+      check('左右チェック：次は右だけ', right > 40, `右が ${right.toFixed(1)} dB 大きい`);
+      check('左右チェック：最後は真ん中に戻る', Math.abs(back) < 0.5 && Math.abs(total - 2.48) < 0.01, `左右差 ${back.toFixed(2)} dB、かかる時間 ${total.toFixed(2)} 秒`);
+    }
+    // 15. 回っているときは、リバーブ 0 でも、うっすら響きが残る（回っていないときは残らない）
+    {
+      const click = (ctx) => {
+        const b = ctx.createBuffer(1, SR, SR); b.getChannelData(0)[Math.floor(0.1 * SR)] = 1;
+        const s = ctx.createBufferSource(); s.buffer = b; return s;
+      };
+      const [Lm] = await renderWith({ ...flat, orbitDepth: 1, reverb: 0 }, 2, click);
+      const tail = rms(Lm, 0.8, 1.2);
+      check('回っているときは、うっすら響く', tail > 1e-5, `0.7秒後の響き ${tail.toExponential(2)}`);
+    }
+    // ---------- Beat Sync ----------
+    // ドラムのような音（拍ごとにキック・2拍目と4拍目にスネア・8分音符ごとにハイハット・ずっと鳴る和音）
+    const drums = (bpm, seconds, offset) => (ctx) => {
+      const n = Math.ceil(SR * seconds), b = ctx.createBuffer(1, n, SR), d = b.getChannelData(0);
+      let seed = 7;
+      const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 1073741824 - 1; };
+      for (let i = 0; i < n; i++) { const t = i / SR; d[i] = 0.05 * (Math.sin(2 * Math.PI * 220 * t) + Math.sin(2 * Math.PI * 277 * t) + Math.sin(2 * Math.PI * 330 * t)); }
+      const beat = 60 / bpm;
+      for (let k = 0; offset + k * beat / 2 < seconds; k++) {
+        const t0 = offset + k * beat / 2, i0 = Math.floor(t0 * SR);
+        const onBeat = k % 2 === 0, beatNo = Math.floor(k / 2);
+        for (let j = 0; j < SR * 0.25 && i0 + j < n; j++) {
+          const t = j / SR;
+          let v = 0.12 * rnd() * Math.exp(-t * 60); // ハイハット
+          if (onBeat) v += 0.6 * Math.sin(2 * Math.PI * (55 + 90 * Math.exp(-t * 30)) * t) * Math.exp(-t * 12); // キック
+          if (onBeat && beatNo % 2 === 1) v += 0.35 * rnd() * Math.exp(-t * 18); // スネア
+          d[i0 + j] += v;
+        }
+      }
+      const s = ctx.createBufferSource(); s.buffer = b; return s;
+    };
+    // 10 ミリ秒ごとに beatTick を呼びながら計算する（ページ側の動きと同じ）
+    async function renderBeats(settings, seconds, makeSource, every = 0.01, onTick) {
+      const ctx = new OfflineAudioContext(2, Math.ceil(SR * seconds), SR);
+      const engine = new OrbitEngine(ctx);
+      engine.output.connect(ctx.destination);
+      engine.apply({ ...settings, enabled: true });
+      const merger = ctx.createChannelMerger(2);
+      const src = makeSource(ctx);
+      src.connect(merger, 0, 0); src.connect(merger, 0, 1); merger.connect(engine.input); src.start(0);
+      for (let t = every; t < seconds - 0.02; t += every) {
+        ctx.suspend(Math.round(t * SR / 128) * 128 / SR).then(() => { (onTick || (() => engine.beatTick()))(engine); ctx.resume(); });
+      }
+      const buf = await ctx.startRendering();
+      return { engine, L: buf.getChannelData(0), R: buf.getChannelData(1) };
+    }
+    // 16. テンポの検出：拍の速さと位置が合う
+    {
+      const OFF = 0.13;
+      for (const bpm of [92, 128, 150]) {
+        const { engine } = await renderBeats({ ...flat, orbitDepth: 1, beat: 'sync' }, 10, drums(bpm, 10, OFF));
+        const g = engine.beatGrid;
+        const got = g ? g.bpm : 0;
+        let phErr = NaN;
+        if (g) { const per = 60 / bpm, r = (((g.anchor - OFF) % per) + per) % per; phErr = Math.min(r, per - r) * 1000; }
+        check(`テンポの検出（${bpm} BPM）`, Math.abs(got - bpm) <= 1, `検出 ${got.toFixed(1)} BPM（自信 ${g ? g.confidence.toFixed(1) : '-'}）`);
+        check(`拍の位置（${bpm} BPM）`, phErr <= 20, `実際の拍とのずれ ${phErr.toFixed(1)} ミリ秒`);
+      }
+    }
+    // 17. 雑音だけ（拍がない）のときは、テンポを決めない
+    {
+      // noise() は2秒のくり返しで、それ自体が「リズム」になるため、くり返さない雑音を使う
+      const longNoise = (ctx) => {
+        const b = ctx.createBuffer(1, SR * 8, SR), d = b.getChannelData(0);
+        let seed = 99;
+        for (let i = 0; i < d.length; i++) { seed = (seed * 1103515245 + 12345) % 2147483648; d[i] = (seed / 1073741824 - 1) * 0.3; }
+        const s = ctx.createBufferSource(); s.buffer = b; return s;
+      };
+      const { engine } = await renderBeats({ ...flat, orbitDepth: 1, beat: 'sync' }, 8, longNoise);
+      check('拍のない音では、テンポを決めない', !engine.beatGrid, engine.beatGrid ? `誤って ${engine.beatGrid.bpm.toFixed(1)} BPM と判定（自信 ${engine.beatGrid.confidence.toFixed(1)}）` : 'テンポなし');
+    }
+    // 18. テンポに合わせる：拍の瞬間に、音が「前・右・後ろ・左」のどれかに来る（120 BPM・4拍で1周＝2秒で1周）
+    const grid120 = { bpm: 120, period: 0.5, anchor: 0.1, confidence: 9 };
+    const sideAt = (L, R, t) => db(rms(R, t - 0.01, t + 0.01) / rms(L, t - 0.01, t + 0.01));
+    {
+      const tick = (e) => { e.beatGrid = grid120; e.scheduleBeats(e.ctx.currentTime, 1.0); };
+      const { L, R } = await renderBeats({ ...flat, orbitDepth: 1, orbitSeconds: 7, beat: 'sync', beatsPerTurn: 4 }, 7, noise(0.3), 0.05, tick);
+      const rs = [];
+      for (let t = 4.1; t < 6.6; t += 0.5) rs.push(sideAt(L, R, t));
+      const ok = rs.every((r) => Math.abs(r) < 2 || Math.abs(r) > 15);
+      const centers = rs.filter((r) => Math.abs(r) < 2).length;
+      check('テンポに合わせる：拍の瞬間は 前・右・後ろ・左 のどれか', ok && centers >= 2 && centers <= 3, `拍ごとの左右差 ${rs.map((r) => r.toFixed(1)).join(' / ')} dB`);
+    }
+    // 19. 跳ねる：拍の直後に動き、拍の後半は止まっている
+    {
+      const tick = (e) => { e.beatGrid = grid120; e.scheduleBeats(e.ctx.currentTime, 1.0); };
+      const { L, R } = await renderBeats({ ...flat, orbitDepth: 1, beat: 'bounce', beatsPerTurn: 8 }, 7, noise(0.3), 0.05, tick);
+      let holdMax = 0, moveMin = Infinity;
+      for (let tb = 4.1; tb < 6.1; tb += 0.5) {
+        const mid = sideAt(L, R, tb + 0.22), late = sideAt(L, R, tb + 0.46);
+        const before = sideAt(L, R, tb - 0.02), after = sideAt(L, R, tb + 0.2);
+        holdMax = Math.max(holdMax, Math.abs(late - mid));
+        moveMin = Math.min(moveMin, Math.abs(after - before));
+      }
+      check('跳ねる：拍の後半は止まっている', holdMax < 1, `拍の後半での動き 最大 ${holdMax.toFixed(2)} dB`);
+      check('跳ねる：拍の直後に動く', moveMin > 3, `拍の直後の動き 最小 ${moveMin.toFixed(1)} dB`);
+    }
+    // 20. Beat Sync をオフに戻すと、ふつうの速さに戻る
+    {
+      const ctx = new OfflineAudioContext(2, SR, SR);
+      const engine = new OrbitEngine(ctx);
+      engine.apply({ ...flat, enabled: true, orbitDepth: 1, beat: 'sync', beatsPerTurn: 4 });
+      engine.beatGrid = grid120;
+      engine.scheduleBeats(0, 1.0);
+      engine.apply({ ...flat, enabled: true, orbitDepth: 1, orbitSeconds: 5, beat: 'off' });
+      const st = engine.motionState();
+      check('オフに戻すと、ふつうの速さに戻る', Math.abs(st.freq - 0.2) < 1e-6 && st.beat === null && engine.stereoClock.pts.length === 1, `速さ ${st.freq.toFixed(3)} 周/秒、予約 ${engine.stereoClock.pts.length - 1} 件`);
+    }
+    // 7. 設定の安全化
+    {
+      const s = sanitize({ volume: 99, speed: -5, bass: 'abc', preset: '<script>', enabled: 'yes', orbitSeconds: NaN });
+      check('範囲外の値は丸める', s.volume === 3 && s.speed === 0.5, `volume=${s.volume}, speed=${s.speed}`);
+      check('おかしな値は初期値に戻す', s.bass === 0 && s.preset === 'flat' && s.enabled === false && s.orbitSeconds === 8,
+        `bass=${s.bass}, preset=${s.preset}, enabled=${s.enabled}, orbitSeconds=${s.orbitSeconds}`);
+      const p = withPreset({ ...flat, volume: 2.5, enabled: true }, 'slowed');
+      check('プリセットで音量は変わらない', p.volume === 2.5 && p.speed === 0.85 && p.enabled === true,
+        `volume=${p.volume}, speed=${p.speed}`);
+      const m1 = sanitize({ motion: 'spiral' }).motion, m2 = sanitize({ motion: 'toString' }).motion, m3 = sanitize({}).motion;
+      check('回転の種類：知らない名前は「左右」に戻す', m1 === 'spiral' && m2 === 'lr' && m3 === 'lr', `spiral→${m1}, toString→${m2}, なし→${m3}`);
+      const p2 = withPreset({ ...flat, motion: 'figure8' }, 'orbit8d');
+      check('プリセットで回転の種類は変わらない', p2.motion === 'figure8', `motion=${p2.motion}`);
+    }
+  } catch (e) {
+    check('テストの実行', false, String(e && e.stack || e));
+  }
+
+  const passed = results.filter((r) => r.ok).length;
+  document.getElementById('summary').textContent = `${passed} / ${results.length} 件 成功`;
+  window.__results = { passed, total: results.length, results };
+})();
+</script>
+</body>
+</html>

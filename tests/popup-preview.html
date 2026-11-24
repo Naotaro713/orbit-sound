@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Orbit Sound ポップアップの確認</title>
+<style>
+  body { margin: 0; padding: 20px; background: #D9DCE1; font: 14px/1.6 "Hiragino Sans", system-ui, sans-serif; color: #1D1D1F; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; color: #555; }
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; align-items: center; }
+  .bar button { font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 8px; border: 1px solid #aaa; background: #fff; cursor: pointer; }
+  .bar button[aria-pressed=true] { background: #1D1D1F; color: #fff; border-color: #1D1D1F; }
+  .frames { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .frames figure { margin: 0; }
+  figcaption { font-size: 12px; color: #555; margin-bottom: 6px; }
+  iframe { width: 360px; height: 600px; border: 0; border-radius: 12px; background: #fff; box-shadow: 0 12px 32px rgba(0,0,0,.18); }
+</style>
+<script>
+  // 偽物の拡張機能（iframe の中の popup.js が使う）。iframe より先に用意しておく
+  const T0 = performance.now();
+  const state = {
+    status: 'active', unsupported: false,
+    settings: { enabled: true, preset: 'slowed', motion: 'circle', orbitDepth: 1, orbitSeconds: 8, volume: 1, speed: 0.85, bass: 3, clarity: -2, reverb: 0.55, roomSize: 4 }
+  };
+  const cycles = { lr: 1, circle: 1, figure8: 1, spiral: 3, drift: 3 };
+  function snapshot() {
+    const s = state.settings;
+    // 拍に合わせるときは、124 BPM の曲が流れているものとして返す（測り終わるまで3秒かかる）
+    const per = (s.beatsPerTurn || 8) * cycles[s.motion];
+    const locked = s.beat && s.beat !== 'off' && state.status === 'active' && performance.now() - T0 > 3000;
+    const f = s.beat && s.beat !== 'off' ? 1 / (per * 60 / 124) : 1 / (s.orbitSeconds * cycles[s.motion]);
+    const running = state.status === 'active' || state.status === 'waiting';
+    const beat = s.beat && s.beat !== 'off' ? { mode: s.beat, bpm: locked ? 124 : 0, perPeriod: per } : null;
+    return { settings: s, status: s.enabled ? state.status : 'off', host: 'www.youtube.com',
+      motion: running ? { motion: s.motion, phase: (((performance.now() - T0) / 1000) * f) % 1, freq: f, running: true, beat } : null };
+  }
+  window.__orbitPopupStub = {
+    query: async () => [{ id: 1 }],
+    sendMessage: async (_id, msg) => {
+      if (state.unsupported) throw new Error('Could not establish connection');
+      if (msg.type === 'orbit:set') state.settings = msg.settings;
+      if (msg.type === 'orbit:probe') {
+        const st = state.settings.enabled ? state.status : 'off';
+        return st === 'active' ? { ok: true, seconds: 2.48 } : { ok: false, reason: st };
+      }
+      return snapshot();
+    }
+  };
+</script>
+</head>
+<body>
+<h1>ポップアップの確認（本物の popup.html を、偽物の拡張機能につないで表示）</h1>
+<p>枠の高さは、本物のポップアップと同じく中身に合わせて変わります（上限 600px）。下のボタンで、ページ側の状態を切り替えられます。</p>
+<div id="file-warning" hidden style="background:#FFF4D6;border:1px solid #E0B54A;border-radius:10px;padding:10px 14px;margin-bottom:14px">
+  このページはファイルとして直接開かれているため、中の画面が動きません。テスト用サーバーを起動して、
+  <a href="http://localhost:8765/tests/popup-preview.html">http://localhost:8765/tests/popup-preview.html</a> を開いてください。
+</div>
+<script>if (location.protocol === 'file:') document.getElementById('file-warning').hidden = false;</script>
+<div class="bar" id="bar">
+  <span>ページの状態：</span>
+  <button data-s="active" aria-pressed="true">効いている</button>
+  <button data-s="waiting">再生待ち</button>
+  <button data-s="needs-click">クリックが必要</button>
+  <button data-s="protected">保護つき</button>
+  <button data-s="unsupported">対応していないページ</button>
+</div>
+<div class="frames">
+  <figure><iframe id="f1" src="../popup.html"></iframe></figure>
+</div>
+<script>
+  // 本物のポップアップと同じく、枠の高さを中身に合わせる（上限 600px）
+  for (const f of document.querySelectorAll('iframe')) {
+    f.addEventListener('load', () => {
+      const body = f.contentDocument.body;
+      const fit = () => { f.style.height = Math.min(600, Math.ceil(body.getBoundingClientRect().height)) + 'px'; };
+      new ResizeObserver(fit).observe(body);
+      fit();
+    });
+  }
+  document.getElementById('bar').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#bar button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    state.unsupported = b.dataset.s === 'unsupported';
+    if (!state.unsupported) state.status = b.dataset.s;
+    // ポップアップを開き直したときと同じように読み込み直す
+    for (const f of document.querySelectorAll('iframe')) f.contentWindow.location.reload();
+  });
+</script>
+</body>
+</html>

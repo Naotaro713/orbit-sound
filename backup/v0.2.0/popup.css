@@ -1,0 +1,137 @@
+:root {
+  --bg: #fbfaf7;
+  --panel: #ffffff;
+  --text: #1d1b22;
+  --muted: #6c6875;
+  --line: #e6e2ea;
+  --accent: #7b5cf0;
+  --accent-soft: #ece6ff;
+  --warn: #d9480f;
+  --ok: #2b8a3e;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16141b;
+    --panel: #201d27;
+    --text: #efedf3;
+    --muted: #a19cab;
+    --line: #34303d;
+    --accent: #a48bff;
+    --accent-soft: #2e2645;
+    --warn: #ff8a5c;
+    --ok: #69db7c;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  width: 360px;
+  padding: 10px 14px 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.45 system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+}
+
+.top { display: flex; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 8px; }
+.logo { width: 26px; height: 26px; color: var(--text); }
+h1 { font-size: 16px; margin: 0; letter-spacing: .02em; }
+h2 {
+  font-size: 11px; margin: 0 0 4px; color: var(--muted);
+  font-weight: 600; letter-spacing: .06em;
+}
+
+.status {
+  margin: 8px 0 8px; padding: 6px 10px; border-radius: 8px;
+  background: var(--panel); border: 1px solid var(--line); color: var(--muted);
+}
+.status[data-kind="active"] { color: var(--ok); }
+.status[data-kind="warn"] { color: var(--warn); }
+
+section, .section {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 8px 12px; margin-bottom: 8px;
+}
+
+/* 開閉できる欄（音質） */
+.section summary { list-style: none; cursor: pointer; display: flex; align-items: center; }
+.section summary::-webkit-details-marker { display: none; }
+.section summary h2 { margin: 0; flex: 1; }
+.section summary::after { content: "▸"; color: var(--muted); font-size: 11px; transition: transform .15s; }
+.section[open] summary::after { transform: rotate(90deg); }
+.section[open] summary { margin-bottom: 4px; }
+
+/* 8D 回転：左に動きの図、右に種類のボタン */
+.orbit { display: grid; grid-template-columns: 120px 1fr; gap: 10px; margin-bottom: 4px; }
+.viz { position: relative; width: 120px; height: 120px; }
+.viz canvas { width: 120px; height: 120px; display: block; border-radius: 10px; background: var(--bg); }
+.viz-note {
+  position: absolute; left: 0; right: 0; bottom: 4px; text-align: center;
+  font-size: 10px; color: var(--muted); pointer-events: none;
+}
+.motions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.motions button {
+  border: 1px solid var(--line); background: transparent; color: var(--text);
+  border-radius: 7px; padding: 4px 2px; font: inherit; font-size: 12px; cursor: pointer;
+}
+.motions button:hover { border-color: var(--accent); }
+.motions button[aria-checked="true"] {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600;
+}
+.motions .tag { font-size: 9px; opacity: .75; margin-left: 2px; }
+.motion-desc { margin: 6px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+
+.presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.presets button {
+  border: 1px solid var(--line); background: transparent; color: var(--text);
+  border-radius: 8px; padding: 5px 2px; font: inherit; font-size: 12px; cursor: pointer;
+  line-height: 1.25; white-space: nowrap;
+}
+.presets button:hover { border-color: var(--accent); }
+.presets button[aria-pressed="true"] {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600;
+}
+
+/* 1行に「名前・スライダー・数値」を並べる（ポップアップの高さ上限 600px に収めるため） */
+.field {
+  display: grid; grid-template-columns: 74px 1fr 58px; align-items: center;
+  column-gap: 6px; margin: 0; min-height: 23px;
+}
+.field label { font-size: 12.5px; grid-column: 1; grid-row: 1; }
+.field input[type="range"] { grid-column: 2; grid-row: 1; width: 100%; margin: 0; accent-color: var(--accent); }
+.field output {
+  grid-column: 3; grid-row: 1; text-align: right;
+  font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px;
+}
+.field output.loud { color: var(--warn); font-weight: 600; }
+
+.switch { position: relative; display: inline-block; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.track {
+  display: block; width: 42px; height: 24px; border-radius: 12px;
+  background: var(--line); transition: background .15s;
+}
+.thumb {
+  position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s;
+}
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track .thumb { transform: translateX(18px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top-actions { display: flex; align-items: center; gap: 8px; }
+.icon-btn {
+  width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line);
+  background: transparent; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; padding: 0;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--muted); }
+
+.dim section, .dim .section { opacity: .55; }
+
+.unsupported { padding: 8px 2px; }
+.unsupported .big { font-size: 14px; font-weight: 600; margin: 4px 0 8px; }
+.unsupported p { margin: 0 0 8px; }
+.unsupported .small { color: var(--muted); font-size: 12px; }

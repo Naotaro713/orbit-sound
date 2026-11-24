@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit Sound UI案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&family=Zen+Maru+Gothic:wght@500;700&family=Dela+Gothic+One&family=RocknRoll+One&family=Zen+Kaku+Gothic+Antique:wght@400;700&family=M+PLUS+1:wght@400;700;800&family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans+JP:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ===== 比較ページ ===== */
+:root { --page: #DDE1E7; --ink: #1B1F2A; --sub: #5A6170; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.6 "Zen Kaku Gothic New", system-ui, sans-serif; }
+.intro { max-width: 1180px; margin: 0 auto; padding: 28px 20px 8px; }
+.intro h1 { font-size: 24px; margin: 0 0 6px; }
+.intro p { margin: 0 0 6px; color: var(--sub); max-width: 70ch; }
+.grid { max-width: 1180px; margin: 0 auto; padding: 16px 20px 60px; display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 36px 24px; }
+.item h2 { font-size: 17px; margin: 0 0 2px; }
+.item .what { margin: 0 0 12px; color: var(--sub); font-size: 13px; min-height: 42px; }
+.item ul { margin: 12px 0 0; padding-left: 18px; font-size: 13px; color: var(--sub); }
+.item li { margin-bottom: 3px; }
+.popup { width: 360px; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 1px 2px rgba(20,25,40,.18), 0 12px 32px rgba(20,25,40,.16); }
+button { font: inherit; color: inherit; }
+input[type=range] { width: 100%; }
+@media (max-width: 420px) { .popup { width: 100%; } .grid { grid-template-columns: 1fr; } }
+
+/* ===== A ステージ ===== */
+.mA { height: 560px; background: #EEF1F7; color: #1E2340; font-family: "Zen Kaku Gothic New", sans-serif; padding: 14px 18px; }
+.mA header { display: flex; justify-content: space-between; align-items: center; }
+.mA header b { font-size: 15px; letter-spacing: .02em; }
+.mA .st { font-size: 12px; color: #2F7D4F; display: flex; align-items: center; gap: 6px; }
+.mA .st i { width: 8px; height: 8px; border-radius: 50%; background: #2FAF63; box-shadow: 0 0 0 3px rgba(47,175,99,.2); }
+.mA.off .st { color: #8A90A6; } .mA.off .st i { background: #B5BACB; box-shadow: none; }
+.mA .stage { position: relative; width: 260px; height: 260px; margin: 4px auto 0; }
+.mA .stage canvas { width: 260px; height: 260px; }
+.mA .headbtn { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px; border-radius: 50%; border: 0; background: transparent; cursor: pointer; }
+.mA .headbtn:focus-visible { outline: 2px solid #3D5AFE; }
+.mA .hint { text-align: center; font-size: 11.5px; color: #8A90A6; margin: -4px 0 10px; }
+.mA .lab { font-size: 12px; color: #5D6482; margin: 10px 0 5px; }
+.mA .motions { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.mA .motions button { border: 0; background: #fff; border-radius: 10px; padding: 6px 0 4px; font-size: 11.5px; cursor: pointer; display: grid; justify-items: center; gap: 2px; }
+.mA .motions button[aria-pressed=true] { background: #3D5AFE; color: #fff; }
+.mA .tones { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.mA .tones button { flex: none; border: 1px solid #C9CFE0; background: transparent; border-radius: 99px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.mA .tones button[aria-pressed=true] { border-color: #1E2340; background: #1E2340; color: #fff; }
+.mA .vol { display: grid; grid-template-columns: 36px 1fr 42px; align-items: center; gap: 8px; margin-top: 14px; font-size: 12.5px; }
+.mA .vol input { accent-color: #3D5AFE; }
+.mA .more { margin-top: 10px; width: 100%; border: 0; background: transparent; color: #5D6482; font-size: 12px; cursor: pointer; text-align: center; }
+
+/* ===== B レコード ===== */
+.mB { height: 560px; background: #1F3B33; color: #F2EBD3; font-family: "Zen Kaku Gothic New", sans-serif; padding: 14px 18px; }
+.mB header { display: flex; justify-content: space-between; align-items: center; }
+.mB h3 { margin: 0; font: 20px "Dela Gothic One", sans-serif; letter-spacing: .02em; color: #E8B931; }
+.mB .needle { border: 1px solid #E8B931; background: transparent; color: #E8B931; border-radius: 99px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
+.mB.on .needle { background: #E8B931; color: #1F3B33; }
+.mB .deck { position: relative; width: 280px; height: 280px; margin: 10px auto 6px; }
+.mB .deck svg.rec { position: absolute; inset: 20px; width: 240px; height: 240px; }
+.mB.on .deck svg.rec { animation: spin var(--rpm, 1.8s) linear infinite; }
+.mB .deck canvas { position: absolute; inset: 0; width: 280px; height: 280px; }
+.mB .arm { position: absolute; right: -6px; top: 4px; width: 90px; height: 170px; transform-origin: 78px 14px; transform: rotate(-24deg); transition: transform .5s cubic-bezier(.3,.7,.3,1); }
+.mB.on .arm { transform: rotate(4deg); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.mB .speed { display: grid; grid-template-columns: repeat(3, 1fr); background: #173029; border-radius: 10px; padding: 4px; gap: 4px; }
+.mB .speed button { border: 0; background: transparent; border-radius: 7px; padding: 7px 0; font-size: 12.5px; cursor: pointer; line-height: 1.25; }
+.mB .speed button small { display: block; font-size: 10.5px; opacity: .7; }
+.mB .speed button[aria-pressed=true] { background: #E8B931; color: #1F3B33; }
+.mB .motions { display: flex; gap: 6px; margin: 12px 0 10px; justify-content: center; flex-wrap: wrap; }
+.mB .motions button { border: 0; background: transparent; color: #CFC6A8; font-size: 12.5px; cursor: pointer; padding: 2px 4px; border-bottom: 2px solid transparent; }
+.mB .motions button[aria-pressed=true] { color: #F2EBD3; border-bottom-color: #E8B931; }
+.mB .fader { display: grid; grid-template-columns: 34px 1fr 42px; align-items: center; gap: 8px; font-size: 12.5px; }
+.mB .fader input { accent-color: #E8B931; }
+
+/* ===== C ミキサー ===== */
+.mC {background: linear-gradient(#D4D8DD, #BCC1C7); color: #2A2D31; font-family: "M PLUS 1", sans-serif; padding: 14px 16px; }
+.mC header { display: flex; align-items: center; gap: 10px; }
+.mC header b { font: 700 15px "Chakra Petch", "M PLUS 1", sans-serif; letter-spacing: .04em; flex: 1; }
+.mC .pwr { width: 46px; height: 24px; border-radius: 4px; border: 1px solid #8C939B; background: #2A2D31; position: relative; cursor: pointer; }
+.mC .pwr::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 16px; border-radius: 2px; background: #9AA1A9; transition: left .15s; }
+.mC.on .pwr::after { left: 23px; background: #FFB000; box-shadow: 0 0 8px #FFB000; }
+.mC .top { display: grid; grid-template-columns: 150px 1fr; gap: 12px; margin-top: 12px; }
+.mC .scope { background: #0E1A14; border-radius: 10px; padding: 5px; box-shadow: inset 0 2px 6px rgba(0,0,0,.6); }
+.mC .scope canvas { width: 140px; height: 140px; display: block; }
+.mC .sel { position: relative; height: 150px; }
+.mC .sel .dial { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #F4F5F6, #9EA5AD); box-shadow: 0 3px 6px rgba(0,0,0,.35); }
+.mC .sel .dial i { position: absolute; left: 50%; top: 5px; width: 3px; height: 20px; margin-left: -1.5px; background: #2A2D31; border-radius: 2px; transform-origin: 1.5px 27px; }
+.mC .sel button { position: absolute; border: 0; background: transparent; font-size: 11.5px; cursor: pointer; padding: 2px; color: #555B62; transform: translate(-50%, -50%); white-space: nowrap; }
+.mC .sel button[aria-pressed=true] { color: #000; font-weight: 700; }
+.mC .knobs { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 16px; text-align: center; }
+.mC .knob { width: 78px; height: 78px; margin: 0 auto; cursor: ns-resize; touch-action: none; }
+.mC .knobs span { display: block; font-size: 12px; margin-top: 2px; }
+.mC .knobs output { font: 600 12px "Chakra Petch", sans-serif; color: #444; }
+.mC .tonebank { margin-top: 14px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.mC .tonebank button { border: 1px solid #8C939B; background: #E6E9EC; border-radius: 5px; padding: 6px 0; font-size: 11.5px; cursor: pointer; box-shadow: 0 2px 0 #8C939B; }
+.mC .tonebank button[aria-pressed=true] { background: #2A2D31; color: #FFB000; box-shadow: inset 0 1px 3px #000; transform: translateY(2px); }
+.mC .note { margin-top: 10px; font-size: 11px; color: #555B62; text-align: center; }
+
+/* ===== D 気分のタイル ===== */
+.mD { height: 540px; background: #FFFFFF; color: #2B2A33; font-family: "Zen Maru Gothic", sans-serif; padding: 16px; }
+.mD header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.mD header b { font-size: 16px; }
+.mD .onoff { border: 0; border-radius: 99px; padding: 6px 16px; font-size: 13px; cursor: pointer; background: #EDEBF2; color: #77738A; font-weight: 700; }
+.mD.on .onoff { background: #2B2A33; color: #fff; }
+.mD .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mD .tile { border: 0; border-radius: 18px; padding: 12px; text-align: left; cursor: pointer; min-height: 92px; position: relative; display: flex; flex-direction: column; justify-content: flex-end; }
+.mD .tile b { font-size: 17px; }
+.mD .tile small { font-size: 11.5px; opacity: .75; }
+.mD .tile.wide { grid-column: span 2; min-height: 118px; padding-right: 120px; }
+.mD .tile canvas { position: absolute; right: 8px; top: 8px; width: 102px; height: 102px; }
+.mD .tile[aria-pressed=true] { outline: 3px solid #2B2A33; outline-offset: 2px; }
+.mD .vol { margin-top: 18px; display: grid; grid-template-columns: 22px 1fr 22px; gap: 8px; align-items: center; font-size: 16px; }
+.mD .vol input { accent-color: #2B2A33; height: 28px; }
+.mD .fine { display: block; margin: 12px auto 0; border: 0; background: transparent; font-size: 13px; color: #77738A; cursor: pointer; }
+
+/* ===== E 惑星系 ===== */
+.mE { padding-bottom: 18px !important;background: #101A3F; color: #DDE8FF; font-family: "Zen Kaku Gothic Antique", sans-serif; padding: 14px 18px; }
+.mE .sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mE > *:not(.sky) { position: relative; }
+.mE header { display: flex; justify-content: space-between; align-items: baseline; }
+.mE header b { font-size: 16px; letter-spacing: .04em; }
+.mE header button { border: 1px solid #8FE3FF; background: transparent; color: #8FE3FF; border-radius: 99px; padding: 3px 12px; font-size: 12px; cursor: pointer; }
+.mE.on header button { background: #8FE3FF; color: #101A3F; }
+.mE .sys canvas { width: 300px; height: 280px; display: block; margin: 4px auto 0; }
+.mE .orbits { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 4px; }
+.mE .orbits button { border: 0; background: rgba(143,227,255,.07); border-radius: 8px; padding: 5px 0; font-size: 11px; color: #AFC3EA; cursor: pointer; display: grid; justify-items: center; }
+.mE .orbits button[aria-pressed=true] { background: rgba(143,227,255,.22); color: #fff; }
+.mE .row { display: grid; grid-template-columns: 70px 1fr 56px; gap: 8px; align-items: center; font-size: 12.5px; margin-top: 12px; }
+.mE .row input { accent-color: #8FE3FF; }
+.mE .row output { text-align: right; color: #AFC3EA; }
+
+/* ===== F ネオン ===== */
+.mF { height: 560px; background: #1C0F33; color: #F6E9FF; font-family: "RocknRoll One", sans-serif; padding: 14px 16px; }
+.mF header { display: flex; justify-content: space-between; align-items: center; }
+.mF h3 { margin: 0; font-size: 18px; color: #FF3EA5; text-shadow: 0 0 10px rgba(255,62,165,.8); }
+.mF .pw { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #3EF2FF; background: transparent; color: #3EF2FF; font-size: 16px; cursor: pointer; }
+.mF.on .pw { box-shadow: 0 0 14px #3EF2FF, inset 0 0 10px rgba(62,242,255,.5); }
+.mF .ring { width: 250px; height: 250px; display: block; margin: 6px auto; }
+.mF .read { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mF .read div { border: 1px solid rgba(62,242,255,.35); border-radius: 10px; padding: 6px 10px; }
+.mF .read small { font-size: 10.5px; color: #B9A6D6; display: block; }
+.mF .read strong { font-size: 22px; color: #3EF2FF; text-shadow: 0 0 8px rgba(62,242,255,.6); }
+.mF .motions { display: flex; gap: 6px; margin-top: 12px; }
+.mF .motions button { flex: 1; border: 1px solid rgba(255,62,165,.45); background: transparent; color: #F6E9FF; border-radius: 8px; padding: 6px 0; font-size: 11.5px; cursor: pointer; }
+.mF .motions button[aria-pressed=true] { border-color: #FF3EA5; box-shadow: 0 0 10px rgba(255,62,165,.7); color: #FF8CCB; }
+.mF .vol { margin-top: 12px; }
+.mF .vol input { accent-color: #FF3EA5; }
+
+/* ===== G カード ===== */
+.mG {background: #F3F3F0; color: #1D1D1F; font-family: "M PLUS 1", sans-serif; padding: 14px 16px; }
+.mG header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.mG header b { font-size: 15px; }
+.mG .sw { width: 44px; height: 26px; border-radius: 99px; border: 0; background: #CFCFCA; position: relative; cursor: pointer; }
+.mG .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .15s; }
+.mG.on .sw { background: #1D1D1F; } .mG.on .sw::after { left: 21px; }
+.mG .card { border-radius: 22px; height: 330px; padding: 16px 18px; color: #fff; position: relative; transition: background .3s; }
+.mG .card canvas { width: 170px; height: 170px; display: block; margin: 0 auto 4px; }
+.mG .card h4 { margin: 0; font-size: 22px; font-weight: 800; }
+.mG .card p { margin: 2px 0 0; font-size: 12.5px; opacity: .85; }
+.mG .card .mix { font-size: 11.5px; margin-top: 6px; display: inline-block; background: rgba(255,255,255,.16); border-radius: 6px; padding: 2px 8px; }
+.mG .nav { position: absolute; top: 90px; width: 34px; height: 34px; border-radius: 50%; border: 0; background: rgba(255,255,255,.18); color: #fff; font-size: 18px; cursor: pointer; }
+.mG .nav.prev { left: 10px; } .mG .nav.next { right: 10px; }
+.mG .dots { display: flex; justify-content: center; gap: 6px; margin: 10px 0; }
+.mG .dots i { width: 7px; height: 7px; border-radius: 50%; background: #CFCFCA; }
+.mG .dots i.cur { background: #1D1D1F; width: 18px; border-radius: 4px; }
+.mG .vol { display: grid; grid-template-columns: 34px 1fr 42px; gap: 8px; align-items: center; font-size: 12.5px; }
+.mG .vol input { accent-color: #1D1D1F; }
+.mG .tune { margin-top: 10px; width: 100%; border: 1px solid #CFCFCA; background: #fff; border-radius: 10px; padding: 8px; font-size: 12.5px; cursor: pointer; }
+
+/* ===== H 音を置く ===== */
+.mH {background: #F4F8FF; color: #14213D; font-family: "Zen Kaku Gothic New", sans-serif; padding: 14px 18px; }
+.mH header { display: flex; justify-content: space-between; align-items: center; }
+.mH header b { font-size: 15px; }
+.mH .modes { display: grid; grid-template-columns: 1fr 1fr; background: #E1EAFB; border-radius: 9px; padding: 3px; margin: 10px 0; }
+.mH .modes button { border: 0; background: transparent; border-radius: 7px; padding: 6px 0; font-size: 12.5px; cursor: pointer; }
+.mH .modes button[aria-pressed=true] { background: #fff; box-shadow: 0 1px 2px rgba(20,33,61,.15); font-weight: 700; }
+.mH .pad { position: relative; width: 300px; height: 300px; margin: 0 auto; border-radius: 16px; background-color: #fff;
+  background-image: linear-gradient(#E6EDFA 1px, transparent 1px), linear-gradient(90deg, #E6EDFA 1px, transparent 1px); background-size: 25px 25px; touch-action: none; cursor: crosshair; }
+.mH .pad canvas { width: 300px; height: 300px; display: block; }
+.mH .padhint { text-align: center; font-size: 11.5px; color: #5B6B8C; margin: 6px 0 0; min-height: 18px; }
+.mH .motions { display: flex; gap: 5px; justify-content: center; margin-top: 8px; }
+.mH .motions button { border: 1px solid #C5D3EE; background: #fff; border-radius: 99px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.mH .motions button[aria-pressed=true] { background: #14213D; color: #fff; border-color: #14213D; }
+.mH .motions[hidden] { display: none; }
+.mH .vol { display: grid; grid-template-columns: 34px 1fr 42px; gap: 8px; align-items: center; font-size: 12.5px; margin-top: 10px; }
+.mH .vol input { accent-color: #2563EB; }
+
+/* ===== I コンパクト ===== */
+.mI {background: #FFFFFF; color: #202124; font-family: "IBM Plex Sans JP", sans-serif; padding: 12px 14px; }
+.mI header { display: flex; align-items: center; gap: 8px; }
+.mI header canvas { width: 30px; height: 30px; }
+.mI header b { flex: 1; font-size: 14px; }
+.mI .sw { width: 40px; height: 22px; border-radius: 99px; border: 0; background: #DADCE0; position: relative; cursor: pointer; }
+.mI .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.mI.on .sw { background: #6D4AFF; } .mI.on .sw::after { left: 21px; }
+.mI .seg { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid #DADCE0; border-radius: 8px; overflow: hidden; margin-top: 12px; }
+.mI .seg button { border: 0; border-right: 1px solid #DADCE0; background: #fff; padding: 4px 0 2px; font-size: 10.5px; cursor: pointer; display: grid; justify-items: center; }
+.mI .seg button:last-child { border-right: 0; }
+.mI .seg button[aria-pressed=true] { background: #EFEAFF; color: #4B2FD1; font-weight: 600; }
+.mI .vol { display: grid; grid-template-columns: 30px 1fr 40px; gap: 8px; align-items: center; font-size: 12px; margin-top: 12px; }
+.mI .vol input { accent-color: #6D4AFF; }
+.mI .pills { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.mI .pills button { border: 1px solid #DADCE0; background: #fff; border-radius: 99px; padding: 3px 10px; font-size: 11.5px; cursor: pointer; }
+.mI .pills button[aria-pressed=true] { background: #202124; color: #fff; border-color: #202124; }
+.mI .pills .more { border: 0; color: #6D4AFF; margin-left: auto; }
+
+@media (prefers-reduced-motion: reduce) { .mB.on .deck svg.rec { animation: none; } }
+</style>
+</head>
+<body>
+<div class="intro">
+  <h1>Orbit Sound の UI 案（9案）</h1>
+  <p>どの案も触れます。動きの種類を押すと、図が本物と同じ動きに変わります。気に入った案を選んでください（「A の図 ＋ D のタイル」のような組み合わせもできます）。</p>
+  <p>どの案でも、「動き（どう回るか）」と「音色（どんな音か）」を分け、細かい調整は奥に下げています。</p>
+</div>
+
+<div class="grid">
+
+<!-- ===== A ===== -->
+<section class="item">
+  <h2>A. ステージ</h2>
+  <p class="what">頭と音の軌道が画面の主役。頭をタップするとオン/オフ。動きと音色を2段に分けて並べる。</p>
+  <div class="popup mA on" id="mA">
+    <header><b>Orbit Sound</b><span class="st"><i></i><span class="st-t">効いています</span></span></header>
+    <div class="stage"><canvas data-size="260"></canvas><button class="headbtn" aria-label="オン/オフ"></button></div>
+    <p class="hint">頭をタップでオン／オフ</p>
+    <div class="lab">動き</div>
+    <div class="motions" data-group="motion"></div>
+    <div class="lab">音色</div>
+    <div class="tones" data-group="tone">
+      <button aria-pressed="true">そのまま</button><button>Slowed + Reverb</button><button>Sped Up</button><button>重低音</button><button>ホール</button>
+    </div>
+    <div class="vol"><span>音量</span><input type="range" min="0" max="300" value="100"><output>100%</output></div>
+    <button class="more">低音・クリアさ・リバーブを調整</button>
+  </div>
+  <ul><li>図を最大にして、この拡張機能ならではの楽しさを前に出す</li><li>「動き」と「音色」を別の段に分け、関係を迷わせない</li><li>表に出すスライダーは音量だけ</li></ul>
+</section>
+
+<!-- ===== B ===== -->
+<section class="item">
+  <h2>B. レコードプレーヤー</h2>
+  <p class="what">「針を落とす」でオン。盤の回転の速さが再生速度（Slowed / Sped Up）。音の粒は盤のまわりを回る。</p>
+  <div class="popup mB on" id="mB">
+    <header><h3>Orbit Sound</h3><button class="needle">針を上げる</button></header>
+    <div class="deck">
+      <svg class="rec" viewBox="0 0 240 240" aria-hidden="true">
+        <circle cx="120" cy="120" r="118" fill="#141414"/>
+        <g fill="none" stroke="#2a2a2a" stroke-width="1"><circle cx="120" cy="120" r="108"/><circle cx="120" cy="120" r="98"/><circle cx="120" cy="120" r="88"/><circle cx="120" cy="120" r="78"/><circle cx="120" cy="120" r="68"/><circle cx="120" cy="120" r="58"/></g>
+        <path d="M120 2 A118 118 0 0 1 220 60" stroke="rgba(255,255,255,.12)" stroke-width="10" fill="none"/>
+        <circle cx="120" cy="120" r="42" fill="#E8B931"/>
+        <text x="120" y="112" text-anchor="middle" font-family="Dela Gothic One" font-size="11" fill="#1F3B33">ORBIT</text>
+        <text x="120" y="134" text-anchor="middle" font-family="Zen Kaku Gothic New" font-size="9" fill="#1F3B33">SIDE A</text>
+        <circle cx="120" cy="120" r="4" fill="#1F3B33"/>
+      </svg>
+      <canvas data-size="280"></canvas>
+      <svg class="arm" viewBox="0 0 90 170" aria-hidden="true">
+        <circle cx="78" cy="14" r="11" fill="#C9C2A6"/><circle cx="78" cy="14" r="4" fill="#1F3B33"/>
+        <path d="M78 14 L70 120 L52 150" stroke="#C9C2A6" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <rect x="42" y="146" width="18" height="12" rx="2" fill="#E8B931" transform="rotate(30 51 152)"/>
+      </svg>
+    </div>
+    <div class="speed" data-group="speed">
+      <button>Slowed<small>×0.85 ＋リバーブ</small></button><button aria-pressed="true">そのまま<small>×1.00</small></button><button>Sped Up<small>×1.25</small></button>
+    </div>
+    <div class="motions" data-group="motion" data-style="text"></div>
+    <div class="fader"><span>音量</span><input type="range" min="0" max="300" value="140"><output>140%</output></div>
+  </div>
+  <ul><li>いちばん使う「速さ」を、レコードの回転というたとえで直感的に</li><li>オン/オフは「針」。押したときに何が起きるかが目で分かる</li><li>見た目の個性がいちばん強い案</li></ul>
+</section>
+
+<!-- ===== C ===== -->
+<section class="item">
+  <h2>C. ミキサー卓</h2>
+  <p class="what">本物の音響機器のように、ツマミを上下にドラッグして回す。動きの種類はロータリースイッチ、図は緑のモニター。</p>
+  <div class="popup mC on" id="mC">
+    <header><button class="pwr" aria-label="電源"></button><b>ORBIT SOUND</b></header>
+    <div class="top">
+      <div class="scope"><canvas data-size="140"></canvas></div>
+      <div class="sel"><div class="dial"><i></i></div></div>
+    </div>
+    <div class="knobs">
+      <div><svg class="knob" data-key="vol" data-min="0" data-max="300" data-val="100" viewBox="0 0 80 80"></svg><span>音量</span><output>100%</output></div>
+      <div><svg class="knob" data-key="depth" data-min="0" data-max="100" data-val="100" viewBox="0 0 80 80"></svg><span>回転の深さ</span><output>100%</output></div>
+      <div><svg class="knob" data-key="rate" data-min="1" data-max="10" data-val="5" viewBox="0 0 80 80"></svg><span>回転の速さ</span><output>5</output></div>
+    </div>
+    <div class="tonebank" data-group="tone"><button>Slowed</button><button>Sped Up</button><button aria-pressed="true">重低音</button><button>ホール</button></div>
+    <p class="note">ツマミは上下にドラッグ。音色ボタンは押し込み式（もう一度押すと戻る）</p>
+  </div>
+  <ul><li>「回す」操作そのものが楽しい。数値が多くても機械らしく整って見える</li><li>回転の速さを「1周の秒数」でなく「速さ 1〜10」にして直感に合わせる</li></ul>
+</section>
+
+<!-- ===== D ===== -->
+<section class="item">
+  <h2>D. 気分のタイル</h2>
+  <p class="what">「ぐるぐる」「とろける」など、気分の言葉の大きなタイルから選ぶだけ。数字はほぼ見せない。</p>
+  <div class="popup mD on" id="mD">
+    <header><b>Orbit Sound</b><button class="onoff">オン</button></header>
+    <div class="tiles" data-group="mood">
+      <button class="tile wide" style="background:#D9CCFF" aria-pressed="true"><canvas data-size="102"></canvas><b>ぐるぐる</b><small>頭のまわりを音が回る</small></button>
+      <button class="tile" style="background:#BFE3FF"><b>とろける</b><small>ゆっくり＋残響</small></button>
+      <button class="tile" style="background:#FFF1A6"><b>はやい</b><small>速く・高く</small></button>
+      <button class="tile" style="background:#BDEBD7"><b>ずっしり</b><small>低音を強く</small></button>
+      <button class="tile" style="background:#FFD9C2"><b>ひろがる</b><small>ホールの響き</small></button>
+    </div>
+    <div class="vol"><span>🔈</span><input type="range" min="0" max="300" value="100"><span>🔊</span></div>
+    <button class="fine">細かく調整する ›</button>
+  </div>
+  <ul><li>迷わない。初めての人や、毎回すぐ使いたい人向け</li><li>「ぐるぐる」のタイルだけ図が動き、ほかの気分との違いが一目で分かる</li></ul>
+</section>
+
+<!-- ===== E ===== -->
+<section class="item">
+  <h2>E. 惑星系</h2>
+  <p class="what">名前の Orbit（軌道）どおり、頭は惑星、音は月。星空の中を回る。動きは「軌道」、速さは「公転」と呼ぶ。</p>
+  <div class="popup mE on" id="mE">
+    <canvas class="sky"></canvas>
+    <header><b>Orbit Sound</b><button>オン</button></header>
+    <div class="sys"><canvas data-size="300" data-h="280"></canvas></div>
+    <div class="orbits" data-group="motion"></div>
+    <div class="row"><span>公転</span><input type="range" min="2" max="20" step="0.5" value="8"><output>8.0 秒</output></div>
+    <div class="row"><span>音量</span><input type="range" min="0" max="300" value="100"><output>100%</output></div>
+  </div>
+  <ul><li>名前と見た目がつながり、ブランドとして覚えやすい</li><li>軌道の形が星図のように描かれ、選ぶ前から動きが分かる</li></ul>
+</section>
+
+<!-- ===== F ===== -->
+<section class="item">
+  <h2>F. ネオンクラブ</h2>
+  <p class="what">夜のクラブのような光る画面。円の外側に音に合わせて伸びる光の棒。音量と速さは大きな表示。</p>
+  <div class="popup mF on" id="mF">
+    <header><h3>オービット・サウンド</h3><button class="pw" aria-label="オン/オフ">⏻</button></header>
+    <canvas class="ring" data-size="250"></canvas>
+    <div class="read"><div><small>音量</small><strong class="v-vol">180%</strong></div><div><small>速さ</small><strong>×1.00</strong></div></div>
+    <div class="motions" data-group="motion" data-style="text"></div>
+    <div class="vol"><input type="range" min="0" max="300" value="180" aria-label="音量"></div>
+  </div>
+  <ul><li>盛り上がる気分の曲・ライブ映像に合う</li><li>光の棒は、のちに本物の音の強さに反応させられる（ビジュアライザー）</li></ul>
+</section>
+
+<!-- ===== G ===== -->
+<section class="item">
+  <h2>G. サウンドカード</h2>
+  <p class="what">「動き＋音色」をまとめた1枚のカードを左右に切り替える。プリセットと回転の種類の二重構造をなくす。</p>
+  <div class="popup mG on" id="mG">
+    <header><b>Orbit Sound</b><button class="sw" aria-label="オン/オフ"></button></header>
+    <div class="card">
+      <canvas data-size="170"></canvas>
+      <h4 class="c-title"></h4><p class="c-desc"></p><span class="mix c-mix"></span>
+      <button class="nav prev" aria-label="前のカード">‹</button><button class="nav next" aria-label="次のカード">›</button>
+    </div>
+    <div class="dots"></div>
+    <div class="vol"><span>音量</span><input type="range" min="0" max="300" value="100"><output>100%</output></div>
+    <button class="tune">このカードを自分好みに調整</button>
+  </div>
+  <ul><li>選ぶものが1種類だけになり、いちばん迷わない</li><li>自分で調整したものを「マイカード」として保存する発展もできる</li></ul>
+</section>
+
+<!-- ===== H ===== -->
+<section class="item">
+  <h2>H. 音を置く</h2>
+  <p class="what">方眼の上で、音の粒を指でドラッグして好きな場所に置ける。「自動で動かす」に切り替えると回り始める。</p>
+  <div class="popup mH on" id="mH">
+    <header><b>Orbit Sound</b><span style="font-size:12px;color:#2F7D4F">● 効いています</span></header>
+    <div class="modes" data-group="mode"><button aria-pressed="true">自動で動かす</button><button>手で置く</button></div>
+    <div class="pad"><canvas data-size="300"></canvas></div>
+    <p class="padhint">粒をドラッグすると「手で置く」になります</p>
+    <div class="motions" data-group="motion" data-style="text"></div>
+    <div class="vol"><span>音量</span><input type="range" min="0" max="300" value="100"><output>100%</output></div>
+  </div>
+  <ul><li>「右うしろから聞こえる」のように、位置を自分で決められる新しい遊び方</li><li>頭から離すほど効きが強くなる＝「深さ」が見て分かる</li><li>実装には、音を決まった位置に止める機能の追加が必要</li></ul>
+</section>
+
+<!-- ===== I ===== -->
+<section class="item">
+  <h2>I. コンパクト</h2>
+  <p class="what">高さを今の半分以下にした最小構成。小さな図はタイトルの横でだけ回る。</p>
+  <div class="popup mI on" id="mI">
+    <header><canvas data-size="30"></canvas><b>Orbit Sound</b><button class="sw" aria-label="オン/オフ"></button></header>
+    <div class="seg" data-group="motion"></div>
+    <div class="vol"><span>音量</span><input type="range" min="0" max="300" value="100"><output>100%</output></div>
+    <div class="pills" data-group="tone"><button>Slowed</button><button>Sped Up</button><button aria-pressed="true">重低音</button><button>ホール</button><button class="more">詳しく ›</button></div>
+  </div>
+  <ul><li>開いてすぐ閉じる使い方に最適。画面のじゃまにならない</li><li>操作は4行だけ。見た目の楽しさは控えめ</li></ul>
+</section>
+
+</div>
+
+<script src="../engine.js"></script>
+<script>
+(() => {
+  'use strict';
+  const { MOTIONS } = OrbitSound;
+  const ORDER = ['lr', 'circle', 'figure8', 'spiral', 'drift'];
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const T0 = performance.now();
+
+  // ---------- 共通：動きの図 ----------
+  const views = [];
+  function setupCanvas(cv, w, h) {
+    const dpr = devicePixelRatio || 1;
+    cv.width = w * dpr; cv.height = h * dpr;
+    const g = cv.getContext('2d'); g.scale(dpr, dpr);
+    return g;
+  }
+  function orbit(cv, state, style) {
+    const w = +cv.dataset.size, h = +(cv.dataset.h || w);
+    views.push({ g: setupCanvas(cv, w, h), w, h, state, style });
+  }
+  function phaseOf(st, now) {
+    const m = MOTIONS[st.motion];
+    return (((now - T0) / 1000) / (st.seconds * m.cycles)) % 1;
+  }
+  const pathCache = {};
+  function pts(name) { return pathCache[name] || (pathCache[name] = Array.from({ length: 361 }, (_, i) => MOTIONS[name].pos(i / 360))); }
+
+  function drawHead(g, cx, cy, s, kind) {
+    g.save();
+    if (kind === 'head') {
+      g.fillStyle = s.headColor;
+      g.beginPath(); g.ellipse(cx - s.hr * 1.08, cy, s.hr * .22, s.hr * .42, 0, 0, 7); g.fill();
+      g.beginPath(); g.ellipse(cx + s.hr * 1.08, cy, s.hr * .22, s.hr * .42, 0, 0, 7); g.fill();
+      g.beginPath(); g.moveTo(cx - s.hr * .32, cy - s.hr * .9); g.lineTo(cx, cy - s.hr * 1.4); g.lineTo(cx + s.hr * .32, cy - s.hr * .9); g.fill();
+      g.beginPath(); g.arc(cx, cy, s.hr, 0, 7); g.fill();
+    } else if (kind === 'planet') {
+      const gr = g.createRadialGradient(cx - s.hr * .4, cy - s.hr * .4, 2, cx, cy, s.hr);
+      gr.addColorStop(0, '#FFE6B8'); gr.addColorStop(1, '#E0884A');
+      g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, s.hr, 0, 7); g.fill();
+      g.strokeStyle = 'rgba(255,230,184,.7)'; g.lineWidth = 2;
+      g.beginPath(); g.ellipse(cx, cy, s.hr * 1.7, s.hr * .45, -.35, 0, 7); g.stroke();
+    } else if (kind === 'dot') {
+      g.fillStyle = s.headColor; g.beginPath(); g.arc(cx, cy, s.hr, 0, 7); g.fill();
+    }
+    g.restore();
+  }
+
+  function drawView(v, now) {
+    const { g, w, h, state: st, style: s } = v;
+    const cx = w / 2, cy = h / 2;
+    const R = Math.min(w, h) / 2 * s.R * (s.ignoreDepth ? 1 : (0.35 + 0.65 * st.depth));
+    const m = MOTIONS[st.motion];
+    const XY = (p) => [cx + p.x * R, cy + p.z * R * (s.squash || 1)];
+    g.clearRect(0, 0, w, h);
+    if (s.bg) { g.fillStyle = s.bg; g.fillRect(0, 0, w, h); }
+    if (s.grid) s.grid(g, w, h);
+    if (s.ring) { g.strokeStyle = s.ring; g.lineWidth = s.ringW || 1; g.beginPath(); g.arc(cx, cy, Math.min(w, h) / 2 * s.R, 0, 7); g.stroke(); }
+    if (s.pre) s.pre(g, cx, cy, R, now, st);
+    // 通り道
+    if (s.path) {
+      g.save(); g.strokeStyle = s.path; g.lineWidth = s.pathW || 1; if (s.dash) g.setLineDash(s.dash);
+      g.globalAlpha = st.on ? (s.pathA || .5) : .25;
+      g.beginPath(); pts(st.motion).forEach((p, i) => { const [x, y] = XY(p); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); g.restore();
+    }
+    if (s.head) drawHead(g, cx, cy, s, s.head);
+    if (!st.on) return;
+    let p, x, y;
+    if (st.manual) { p = st.manual; } else { p = m.pos(reduce ? 0.12 : phaseOf(st, now)); }
+    [x, y] = XY(p);
+    // 軌跡
+    if (!st.manual && s.trail) {
+      const ph = phaseOf(st, now), f = 1 / (st.seconds * m.cycles), span = Math.min(.25, f * .9);
+      for (let i = s.trail; i >= 1; i--) {
+        const q = m.pos(((ph - span * i / s.trail) % 1 + 1) % 1); const [tx, ty] = XY(q);
+        g.globalAlpha = .55 * (1 - i / (s.trail + 1)); g.fillStyle = s.dot;
+        g.beginPath(); g.arc(tx, ty, s.dotR * (.35 + .5 * (1 - i / s.trail)), 0, 7); g.fill();
+      }
+      g.globalAlpha = 1;
+    }
+    const r = s.dotR * (1 + .35 * (p.y || 0));
+    if (s.glow) { g.save(); g.shadowColor = s.glow; g.shadowBlur = r * 2.4; }
+    g.fillStyle = s.dot; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    if (s.glow) g.restore();
+    if (s.post) s.post(g, x, y, r, p);
+  }
+
+  function loop(now) { views.forEach((v) => drawView(v, now)); skyTick(now); if (!reduce) requestAnimationFrame(loop); }
+
+  // 小さな形のアイコン
+  function pathIcon(name, color, size = 26, sw = 1.5) {
+    const cv = document.createElement('canvas'); cv.style.width = cv.style.height = size + 'px';
+    const g = setupCanvas(cv, size, size); const c = size / 2, R = size * .4;
+    g.strokeStyle = color; g.lineWidth = sw; g.lineJoin = 'round';
+    // 上から見ると円と同じに見える種類は、形の特徴が分かる絵にする
+    const TAU = Math.PI * 2;
+    const ICON = {
+      spiral: (t) => { const a = TAU * 2.5 * t; return { x: .85 * Math.sin(a), z: (t - .5) * 1.7 + .28 * Math.cos(a) }; }, // 横から見たコイル
+      drift: (t) => { const a = TAU * t, r = .78 + .2 * Math.sin(5 * a + 1) + .1 * Math.sin(3 * a); return { x: r * Math.sin(a), z: -r * Math.cos(a) }; } // 波打つ輪
+    };
+    const list = ICON[name] ? Array.from({ length: 241 }, (_, i) => ICON[name](i / 240)) : pts(name);
+    g.beginPath(); list.forEach((p, i) => { const x = c + p.x * R, y = c + p.z * R; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+    if (name === 'spiral') return cv; // コイルには中心の点を描かない
+    g.fillStyle = color; g.beginPath(); g.arc(c, c, size * .08, 0, 7); g.fill();
+    return cv;
+  }
+
+  // ボタン群（1つだけ選ぶ）
+  function radio(group, onPick) {
+    const btns = [...group.querySelectorAll('button:not(.more)')];
+    btns.forEach((b, i) => b.addEventListener('click', () => {
+      if (group.dataset.toggle === 'off' && b.getAttribute('aria-pressed') === 'true') { b.setAttribute('aria-pressed', 'false'); onPick && onPick(-1, b); return; }
+      btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b))); onPick && onPick(i, b);
+    }));
+  }
+  function motionButtons(box, state, opts = {}) {
+    ORDER.forEach((name) => {
+      const b = document.createElement('button');
+      b.setAttribute('aria-pressed', String(state.motion === name));
+      if (opts.icon) b.appendChild(pathIcon(name, opts.icon(state.motion === name), opts.iconSize));
+      const t = document.createElement('span'); t.textContent = (opts.names && opts.names[name]) || MOTIONS[name].label; b.appendChild(t);
+      b.addEventListener('click', () => {
+        state.motion = name; state.manual = null;
+        [...box.children].forEach((x, i) => {
+          const on = ORDER[i] === name; x.setAttribute('aria-pressed', String(on));
+          if (opts.icon) { const old = x.querySelector('canvas'); old.replaceWith(pathIcon(ORDER[i], opts.icon(on), opts.iconSize)); }
+        });
+        opts.after && opts.after(name);
+      });
+      box.appendChild(b);
+    });
+  }
+  function bindVol(root, sel = '.vol, .fader') {
+    root.querySelectorAll(sel).forEach((row) => {
+      const inp = row.querySelector('input'), out = row.querySelector('output');
+      if (inp && out) inp.addEventListener('input', () => { out.textContent = inp.value + '%'; });
+    });
+  }
+  function power(root, btn, labelOn, labelOff, state) {
+    btn.addEventListener('click', () => {
+      state.on = !root.classList.contains('on'); root.classList.toggle('on', state.on);
+      if (labelOn) btn.textContent = state.on ? labelOn : labelOff;
+      root.dispatchEvent(new Event('power'));
+    });
+  }
+
+  // ===== A =====
+  {
+    const root = document.getElementById('mA');
+    const st = { motion: 'circle', depth: 1, seconds: 8, on: true };
+    orbit(root.querySelector('.stage canvas'), st, { R: .86, ring: '#D5DBEA', path: '#3D5AFE', dash: [3, 4], pathA: .45, head: 'head', headColor: '#1E2340', hr: 17, dot: '#3D5AFE', dotR: 9, trail: 14, glow: 'rgba(61,90,254,.6)' });
+    motionButtons(root.querySelector('.motions'), st, { icon: (on) => on ? '#fff' : '#1E2340', iconSize: 26 });
+    radio(root.querySelector('.tones'));
+    bindVol(root);
+    root.querySelector('.headbtn').addEventListener('click', () => {
+      st.on = !st.on; root.classList.toggle('on', st.on); root.classList.toggle('off', !st.on);
+      root.querySelector('.st-t').textContent = st.on ? '効いています' : 'オフ';
+    });
+  }
+
+  // ===== B =====
+  {
+    const root = document.getElementById('mB');
+    const st = { motion: 'circle', depth: 1, seconds: 8, on: true };
+    orbit(root.querySelector('.deck canvas'), st, { R: .98, ignoreDepth: true, dot: '#F2EBD3', dotR: 7, trail: 10, glow: 'rgba(242,235,211,.8)' });
+    motionButtons(root.querySelector('.motions'), st);
+    radio(root.querySelector('.speed'), (i) => { root.style.setProperty('--rpm', (1.8 / [0.85, 1, 1.25][i]).toFixed(2) + 's'); });
+    bindVol(root);
+    const nb = root.querySelector('.needle');
+    power(root, nb, '針を上げる', '針を落とす', st);
+  }
+
+  // ===== C =====
+  {
+    const root = document.getElementById('mC');
+    const st = { motion: 'figure8', depth: 1, seconds: 8, on: true };
+    const grid = (g, w, h) => { g.strokeStyle = 'rgba(124,255,178,.12)'; g.lineWidth = 1; for (let i = 1; i < 6; i++) { g.beginPath(); g.moveTo(i * w / 6, 0); g.lineTo(i * w / 6, h); g.stroke(); g.beginPath(); g.moveTo(0, i * h / 6); g.lineTo(w, i * h / 6); g.stroke(); } };
+    orbit(root.querySelector('.scope canvas'), st, { R: .78, grid, path: '#7CFFB2', pathA: .35, head: 'dot', headColor: 'rgba(124,255,178,.55)', hr: 6, dot: '#B8FFD6', dotR: 5, trail: 16, glow: '#7CFFB2' });
+    // ロータリースイッチ
+    const sel = root.querySelector('.sel'), needle = sel.querySelector('.dial i');
+    const angles = [-120, -60, 0, 60, 120];
+    ORDER.forEach((name, i) => {
+      const b = document.createElement('button'); b.textContent = MOTIONS[name].label;
+      const a = (angles[i] - 90) * Math.PI / 180;
+      b.style.left = (50 + Math.cos(a) * 44) + '%'; b.style.top = (50 + Math.sin(a) * 42) + '%';
+      b.setAttribute('aria-pressed', String(name === st.motion));
+      b.addEventListener('click', () => { st.motion = name; needle.style.transform = `rotate(${angles[i]}deg)`; sel.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); });
+      sel.appendChild(b);
+    });
+    needle.style.transform = `rotate(${angles[ORDER.indexOf(st.motion)]}deg)`;
+    // ツマミ
+    root.querySelectorAll('.knob').forEach((k) => {
+      const min = +k.dataset.min, max = +k.dataset.max; let val = +k.dataset.val;
+      const out = k.parentElement.querySelector('output');
+      const draw = () => {
+        const t = (val - min) / (max - min), ang = -135 + 270 * t, rad = (ang - 90) * Math.PI / 180;
+        const arc = (a0, a1) => { const r = 36, p0 = [(40 + r * Math.cos((a0 - 90) * Math.PI / 180)), (40 + r * Math.sin((a0 - 90) * Math.PI / 180))], p1 = [(40 + r * Math.cos((a1 - 90) * Math.PI / 180)), (40 + r * Math.sin((a1 - 90) * Math.PI / 180))]; return `M${p0} A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${p1}`; };
+        k.innerHTML = `<path d="${arc(-135, 135)}" stroke="#8C939B" stroke-width="3" fill="none" stroke-linecap="round"/>` +
+          (t > 0.005 ? `<path d="${arc(-135, ang)}" stroke="#FFB000" stroke-width="3" fill="none" stroke-linecap="round"/>` : '') +
+          `<circle cx="40" cy="40" r="27" fill="#2A2D31"/><circle cx="40" cy="40" r="23" fill="#3A3E44"/>` +
+          `<line x1="40" y1="40" x2="${40 + 20 * Math.cos(rad)}" y2="${40 + 20 * Math.sin(rad)}" stroke="#F4F5F6" stroke-width="3" stroke-linecap="round"/>`;
+        out.textContent = k.dataset.key === 'rate' ? Math.round(val) : Math.round(val) + '%';
+        if (k.dataset.key === 'depth') st.depth = val / 100;
+        if (k.dataset.key === 'rate') st.seconds = 20 - (val - 1) * 2;
+      };
+      let y0 = null, v0 = 0;
+      k.addEventListener('pointerdown', (e) => { y0 = e.clientY; v0 = val; k.setPointerCapture(e.pointerId); });
+      k.addEventListener('pointermove', (e) => { if (y0 === null) return; val = Math.max(min, Math.min(max, v0 + (y0 - e.clientY) * (max - min) / 150)); draw(); });
+      k.addEventListener('pointerup', () => { y0 = null; });
+      draw();
+    });
+    const tb = root.querySelector('.tonebank'); tb.dataset.toggle = 'off'; radio(tb);
+    power(root, root.querySelector('.pwr'), null, null, st);
+  }
+
+  // ===== D =====
+  {
+    const root = document.getElementById('mD');
+    const st = { motion: 'circle', depth: 1, seconds: 6, on: true };
+    orbit(root.querySelector('.tile canvas'), st, { R: .84, ignoreDepth: true, path: '#2B2A33', dash: [2, 3], pathA: .35, head: 'head', headColor: '#2B2A33', hr: 8, dot: '#2B2A33', dotR: 5, trail: 8 });
+    radio(root.querySelector('.tiles'));
+    const ob = root.querySelector('.onoff');
+    power(root, ob, 'オン', 'オフ', st);
+  }
+
+  // ===== E =====
+  let skyTick = () => {};
+  {
+    const root = document.getElementById('mE');
+    const st = { motion: 'spiral', depth: 1, seconds: 6, on: true };
+    orbit(root.querySelector('.sys canvas'), st, { R: .82, ignoreDepth: true, squash: .62, path: '#8FE3FF', pathA: .35, pathW: 1, head: 'planet', hr: 22, dot: '#EAF6FF', dotR: 6, trail: 14, glow: '#8FE3FF' });
+    motionButtons(root.querySelector('.orbits'), st, { icon: (on) => on ? '#8FE3FF' : '#6E84B8', iconSize: 22, names: { lr: '振り子', circle: '円軌道', figure8: '8の字', spiral: 'らせん', drift: 'ゆらぎ' } });
+    const rows = root.querySelectorAll('.row');
+    rows[0].querySelector('input').addEventListener('input', (e) => { st.seconds = +e.target.value; rows[0].querySelector('output').textContent = (+e.target.value).toFixed(1) + ' 秒'; });
+    rows[1].querySelector('input').addEventListener('input', (e) => { rows[1].querySelector('output').textContent = e.target.value + '%'; });
+    const hb = root.querySelector('header button'); power(root, hb, 'オン', 'オフ', st);
+    // 星空
+    const sky = root.querySelector('.sky'); const sg = setupCanvas(sky, 360, 560);
+    const stars = Array.from({ length: 70 }, () => ({ x: Math.random() * 360, y: Math.random() * 560, r: Math.random() * 1.2 + .2, p: Math.random() * 6 }));
+    skyTick = (now) => { sg.clearRect(0, 0, 360, 560); stars.forEach((s) => { sg.globalAlpha = .35 + .35 * Math.sin(now / 900 + s.p); sg.fillStyle = '#fff'; sg.beginPath(); sg.arc(s.x, s.y, s.r, 0, 7); sg.fill(); }); sg.globalAlpha = 1; };
+  }
+
+  // ===== F =====
+  {
+    const root = document.getElementById('mF');
+    const st = { motion: 'figure8', depth: 1, seconds: 5, on: true };
+    const bars = Array.from({ length: 48 }, (_, i) => i);
+    const pre = (g, cx, cy, R, now, s) => {
+      const base = 96;
+      bars.forEach((i) => {
+        const a = i / bars.length * Math.PI * 2;
+        const lv = s.on ? (0.35 + 0.65 * Math.abs(Math.sin(now / 260 + i * 0.7) * Math.sin(now / 410 + i * 0.23))) : 0.08;
+        const len = 6 + 18 * lv;
+        g.strokeStyle = i % 2 ? '#FF3EA5' : '#3EF2FF'; g.globalAlpha = .75; g.lineWidth = 2.5; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(cx + Math.cos(a) * base, cy + Math.sin(a) * base); g.lineTo(cx + Math.cos(a) * (base + len), cy + Math.sin(a) * (base + len)); g.stroke();
+      });
+      g.globalAlpha = 1;
+    };
+    orbit(root.querySelector('.ring'), st, { R: .62, ignoreDepth: true, pre, path: '#FF3EA5', pathA: .4, head: 'head', headColor: '#F6E9FF', hr: 12, dot: '#3EF2FF', dotR: 7, trail: 12, glow: '#3EF2FF' });
+    motionButtons(root.querySelector('.motions'), st);
+    const vol = root.querySelector('.vol input'); vol.addEventListener('input', () => { root.querySelector('.v-vol').textContent = vol.value + '%'; });
+    power(root, root.querySelector('.pw'), null, null, st);
+  }
+
+  // ===== G =====
+  {
+    const root = document.getElementById('mG');
+    const cards = [
+      { t: '夜ドライブ', d: 'ゆっくり回る音と、深い残響。', mix: '円 ＋ Slowed + Reverb', m: 'circle', bg: '#2B2D8C', s: 8 },
+      { t: 'フェス', d: '前で交差して大きく回り込む。', mix: '8の字 ＋ 音量アップ', m: 'figure8', bg: '#A3124F', s: 5 },
+      { t: '集中', d: '漂うように、じゃましない動き。', mix: 'ゆらぎ ＋ そのまま', m: 'drift', bg: '#1F5E4A', s: 10 },
+      { t: '雨の日', d: '上下にもゆれる、ホールの響き。', mix: 'らせん ＋ ホール', m: 'spiral', bg: '#3E5672', s: 7 },
+      { t: 'いつもの左右', d: '最初の版と同じ、左右の8D。', mix: '左右 ＋ そのまま', m: 'lr', bg: '#9A6B00', s: 6 }
+    ];
+    let idx = 0;
+    const st = { motion: cards[0].m, depth: 1, seconds: cards[0].s, on: true };
+    orbit(root.querySelector('.card canvas'), st, { R: .86, ignoreDepth: true, path: 'rgba(255,255,255,.9)', dash: [2, 4], pathA: .45, head: 'head', headColor: '#fff', hr: 12, dot: '#fff', dotR: 7, trail: 12 });
+    const dots = root.querySelector('.dots'); cards.forEach(() => dots.appendChild(document.createElement('i')));
+    const show = () => {
+      const c = cards[idx]; st.motion = c.m; st.seconds = c.s;
+      root.querySelector('.card').style.background = c.bg;
+      root.querySelector('.c-title').textContent = c.t; root.querySelector('.c-desc').textContent = c.d; root.querySelector('.c-mix').textContent = c.mix;
+      [...dots.children].forEach((d, i) => d.classList.toggle('cur', i === idx));
+    };
+    root.querySelector('.prev').addEventListener('click', () => { idx = (idx + cards.length - 1) % cards.length; show(); });
+    root.querySelector('.next').addEventListener('click', () => { idx = (idx + 1) % cards.length; show(); });
+    show(); bindVol(root);
+    power(root, root.querySelector('.sw'), null, null, st);
+  }
+
+  // ===== H =====
+  {
+    const root = document.getElementById('mH');
+    const st = { motion: 'circle', depth: 1, seconds: 8, on: true, manual: null };
+    const cv = root.querySelector('.pad canvas');
+    orbit(cv, st, { R: .8, ignoreDepth: true, ring: '#C5D3EE', path: '#2563EB', dash: [3, 4], pathA: .4, head: 'head', headColor: '#14213D', hr: 15, dot: '#2563EB', dotR: 10, trail: 12, glow: 'rgba(37,99,235,.5)',
+      post: (g, x, y) => { if (!st.manual) return; g.strokeStyle = 'rgba(37,99,235,.5)'; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(150, 150); g.lineTo(x, y); g.stroke(); g.setLineDash([]); } });
+    const modes = root.querySelector('.modes'), mbox = root.querySelector('.motions'), hint = root.querySelector('.padhint');
+    motionButtons(mbox, st);
+    const setMode = (manual) => {
+      modes.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-pressed', String(manual ? i === 1 : i === 0)));
+      mbox.hidden = manual;
+      if (!manual) st.manual = null; else if (!st.manual) st.manual = { x: .6, y: 0, z: .5 };
+      hint.textContent = manual ? '右うしろから聞こえます（ドラッグで動かせます）' : '粒をドラッグすると「手で置く」になります';
+    };
+    modes.querySelectorAll('button').forEach((b, i) => b.addEventListener('click', () => setMode(i === 1)));
+    const place = (e) => {
+      const r = cv.getBoundingClientRect(); const R = 150 * .8;
+      let x = (e.clientX - r.left - 150) / R, z = (e.clientY - r.top - 150) / R; const d = Math.hypot(x, z); if (d > 1.15) { x *= 1.15 / d; z *= 1.15 / d; }
+      st.manual = { x, y: 0, z };
+      const lr = x > .25 ? '右' : x < -.25 ? '左' : '', fb = z > .25 ? 'うしろ' : z < -.25 ? '前' : '';
+      hint.textContent = `${(lr + fb) || '頭のすぐ近く'}から聞こえます（頭から離すほど、はっきり）`;
+    };
+    let drag = false;
+    cv.addEventListener('pointerdown', (e) => { drag = true; cv.setPointerCapture(e.pointerId); setMode(true); place(e); });
+    cv.addEventListener('pointermove', (e) => { if (drag) place(e); });
+    cv.addEventListener('pointerup', () => { drag = false; });
+    bindVol(root);
+  }
+
+  // ===== I =====
+  {
+    const root = document.getElementById('mI');
+    const st = { motion: 'circle', depth: 1, seconds: 4, on: true };
+    orbit(root.querySelector('header canvas'), st, { R: .78, ignoreDepth: true, ring: '#DADCE0', head: 'dot', headColor: '#202124', hr: 3, dot: '#6D4AFF', dotR: 3.2, trail: 5 });
+    motionButtons(root.querySelector('.seg'), st, { icon: (on) => on ? '#4B2FD1' : '#5F6368', iconSize: 22 });
+    const pills = root.querySelector('.pills'); pills.dataset.toggle = 'off'; radio(pills);
+    bindVol(root);
+    power(root, root.querySelector('.sw'), null, null, st);
+  }
+
+  requestAnimationFrame(loop);
+  if (reduce) loop(performance.now());
+})();
+</script>
+</body>
+</html>
